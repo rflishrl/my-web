@@ -200,6 +200,35 @@ describe('Browser verification against built dist/', () => {
     expect(portraitMetrics.width).toBeGreaterThanOrEqual(200);
     expect(portraitMetrics.height).toBeGreaterThanOrEqual(200);
 
+    // Every architecture SVG keeps all text labels non-overlapping and inside bounds
+    const diagramOverlaps = await page.evaluate(() => {
+      const issues: string[] = [];
+      for (const svg of document.querySelectorAll('svg[role="img"]')) {
+        const svgRect = svg.getBoundingClientRect();
+        const texts = Array.from(svg.querySelectorAll('text')).map((el) => ({
+          text: el.textContent?.trim() ?? '',
+          rect: el.getBoundingClientRect(),
+        }));
+        for (let i = 0; i < texts.length; i++) {
+          const a = texts[i]!;
+          if (a.rect.left < svgRect.left || a.rect.right > svgRect.right) {
+            issues.push(`Out of bounds: "${a.text}"`);
+          }
+          for (let j = i + 1; j < texts.length; j++) {
+            const b = texts[j]!;
+            const overlap =
+              a.rect.left < b.rect.right &&
+              a.rect.right > b.rect.left &&
+              a.rect.top < b.rect.bottom &&
+              a.rect.bottom > b.rect.top;
+            if (overlap) issues.push(`Overlap: "${a.text}" vs "${b.text}"`);
+          }
+        }
+      }
+      return issues;
+    });
+    expect(diagramOverlaps).toEqual([]);
+
     expect(consoleErrors).toEqual([]);
     await context.close();
   }, 15000);

@@ -271,7 +271,7 @@ export const portfolio: PortfolioData = {
     {
       index: '04',
       title: 'TOEIC',
-      subtitle: 'Test of English for International Communication',
+      issuer: 'ETS',
     },
   ],
   projects: [
@@ -304,14 +304,14 @@ export const portfolio: PortfolioData = {
       sourceUrl: 'https://github.com/rflishrl/brandmuse',
       diagram: {
         title: 'BrandMuse hybrid RAG and multi-provider generation architecture',
-        width: 840,
+        width: 950,
         height: 300,
         nodes: [
-          { id: 'ui', label: 'React + Vite Client', sublabel: 'Cloudflare Pages', x: 30, y: 110, w: 170, h: 76 },
-          { id: 'api', label: 'FastAPI Service', sublabel: 'Render (Docker) · SSE', x: 260, y: 110, w: 185, h: 76 },
-          { id: 'db', label: 'Neon PostgreSQL', sublabel: 'pgvector + FTS (RRF)', x: 520, y: 24, w: 280, h: 70 },
-          { id: 'r2', label: 'Cloudflare R2', sublabel: 'Guideline Object Storage', x: 520, y: 113, w: 280, h: 70 },
-          { id: 'llm', label: 'LangChain + Providers', sublabel: 'Gemini · OpenAI · Ollama · Langfuse', x: 520, y: 202, w: 280, h: 70 },
+          { id: 'ui', label: 'React + Vite Client', sublabel: 'Cloudflare Pages', x: 20, y: 112, w: 175, h: 76 },
+          { id: 'api', label: 'FastAPI Service', sublabel: 'Render (Docker) · SSE', x: 310, y: 112, w: 185, h: 76 },
+          { id: 'db', label: 'Neon PostgreSQL', sublabel: 'pgvector + FTS (RRF)', x: 650, y: 22, w: 280, h: 70 },
+          { id: 'r2', label: 'Cloudflare R2', sublabel: 'Guideline Object Storage', x: 650, y: 115, w: 280, h: 70 },
+          { id: 'llm', label: 'LangChain + Providers', sublabel: 'Gemini · OpenAI · Ollama · Langfuse', x: 650, y: 208, w: 280, h: 70 },
         ],
         edges: [
           { from: 'ui', to: 'api', label: 'REST / SSE' },
@@ -327,7 +327,7 @@ export const portfolio: PortfolioData = {
       domain: 'B2B Spare-Parts Marketplace',
       role: 'AI Operator, Project Based',
       task: 'Heavy-vehicle buyers and verified manufacturers needed domestic and cross-border B2B marketplaces supporting factory-direct listings, subscription-gated transactions, checkout flows, and seller dashboards.',
-      solution: 'Owned UI, UX, and RESTful API integration for self-contained Next.js and Tailwind CSS pages across muatmuat International and Domestic, shipping product catalogs, order tracking, authentication, and subscription workflows with the frontend team.',
+      solution: 'Owned UI, UX, and RESTful API integration for self-contained Next.js and Tailwind CSS pages across muatmuat Plus International and Plus Domestic, shipping product catalogs, order tracking, authentication, and subscription workflows with the frontend team.',
       tech: [
         'Next.js',
         'TypeScript',
@@ -346,13 +346,13 @@ export const portfolio: PortfolioData = {
       tech: ['Laravel', 'PHP', 'MySQL', 'RESTful API'],
       diagram: {
         title: 'RT Online mobile client, Laravel RESTful API, and MySQL architecture',
-        width: 840,
+        width: 950,
         height: 220,
         nodes: [
-          { id: 'mobile', label: 'Flutter Mobile Client', sublabel: '1,000+ Active Users', x: 30, y: 72, w: 200, h: 76 },
-          { id: 'laravel', label: 'Laravel API', sublabel: 'Clean MVC · RESTful Endpoints', x: 310, y: 72, w: 220, h: 76 },
-          { id: 'mysql', label: 'MySQL Database', sublabel: 'Indexed Schemas', x: 610, y: 24, w: 200, h: 72 },
-          { id: 'devops', label: 'DevOps Pipeline', sublabel: 'Deploy & Env Config', x: 610, y: 120, w: 200, h: 72 },
+          { id: 'mobile', label: 'Flutter Mobile Client', sublabel: '1,000+ Active Users', x: 20, y: 72, w: 210, h: 76 },
+          { id: 'laravel', label: 'Laravel API', sublabel: 'Clean MVC · RESTful Endpoints', x: 350, y: 72, w: 230, h: 76 },
+          { id: 'mysql', label: 'MySQL Database', sublabel: 'Indexed Schemas', x: 710, y: 22, w: 220, h: 72 },
+          { id: 'devops', label: 'DevOps Pipeline', sublabel: 'Deploy & Env Config', x: 710, y: 126, w: 220, h: 72 },
         ],
         edges: [
           { from: 'mobile', to: 'laravel', label: 'JSON API' },
