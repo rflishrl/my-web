@@ -1,0 +1,39 @@
+---
+import { portfolio } from '../data/portfolio';
+import RunningHeader from './RunningHeader.astro';
+---
+
+<section id="experience" aria-labelledby="experience-heading" class="py-16 sm:py-24 md:py-36">
+  <div class="container-editorial">
+    <RunningHeader right="Experience" />
+
+    <h2
+      id="experience-heading"
+      class="mt-10 text-[clamp(2.25rem,5vw,4.25rem)] font-bold leading-[1.05] tracking-[-0.03em] text-ink md:mt-16"
+    >
+      Experience
+    </h2>
+
+    <ol role="list" class="mt-10 divide-y divide-rule border-y border-rule md:mt-14">
+      {portfolio.experience.map((item) => (
+        <li class="grid grid-cols-1 gap-4 py-8 md:grid-cols-12 md:gap-8 md:py-10">
+          <div class="md:col-span-3">
+            <p class="font-mono text-sm text-ink-secondary">{item.period}</p>
+            <p class="mt-1 text-sm text-ink-secondary">{item.location}</p>
+          </div>
+
+          <div class="md:col-span-4">
+            <h3 class="text-lg font-bold leading-snug text-ink">{item.role}</h3>
+            <p class="mt-1 text-base text-ink-secondary">{item.organization}</p>
+          </div>
+
+          <ul class="list-disc space-y-2 pl-5 text-base leading-[1.6] text-ink md:col-span-5">
+            {item.bullets.map((bullet) => (
+              <li class="max-w-[58ch]">{bullet}</li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

@@ -1,0 +1,11 @@
+# Local AI agent skills & configuration (do not push to GitHub)
+.agents/
+AGENTS.md
+skills-lock.json
+
+# Build & dependencies
+node_modules/
+dist/
+.astro/
+.env
+.env.*

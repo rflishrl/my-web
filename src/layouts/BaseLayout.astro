@@ -1,0 +1,92 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import '@fontsource-variable/inter';
+import '@fontsource-variable/jetbrains-mono';
+import interLatinWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import '../styles/global.css';
+import { getImage } from 'astro:assets';
+import portraitImg from '../assets/portrait.jpg';
+import { portfolio } from '../data/portfolio';
+
+interface Props {
+  title?: string;
+  description?: string;
+  noindex?: boolean;
+}
+
+const {
+  title = `${portfolio.displayName} — ${portfolio.headline}`,
+  description = `${portfolio.displayName}, ${portfolio.headline} based in ${portfolio.location}. Full-stack web systems and production AI/LLM engineering.`,
+  noindex = false,
+} = Astro.props;
+
+const canonicalUrl = new URL(Astro.url.pathname === '/' ? '/' : Astro.url.pathname, Astro.site).toString();
+const ogImageExists = fs.existsSync(path.join(process.cwd(), 'public/og-image.png'));
+const ogImageUrl = ogImageExists ? new URL('/og-image.png', Astro.site).toString() : undefined;
+
+const optimizedPortrait = await getImage({
+  src: portraitImg,
+  width: 800,
+  format: 'webp',
+});
+const personImageUrl = new URL(optimizedPortrait.src, Astro.site).toString();
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: portfolio.displayName,
+  alternateName: portfolio.legalName,
+  jobTitle: portfolio.headline,
+  url: 'https://www.raflisahrul.my.id/',
+  image: personImageUrl,
+  sameAs: portfolio.profiles.map((profile) => profile.url),
+  alumniOf: portfolio.education.map((edu) => ({
+    '@type': 'EducationalOrganization',
+    name: edu.institution,
+  })),
+  knowsAbout: portfolio.stackGroups.flatMap((group) => group.items),
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: 'Malang',
+    addressCountry: 'Indonesia',
+  },
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#FFFFFF" />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={interLatinWoff2} as="font" type="font/woff2" crossorigin />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+    <meta name="twitter:card" content={ogImageExists ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {ogImageUrl && <meta name="twitter:image" content={ogImageUrl} />}
+
+    {!noindex && (
+      <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    )}
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <slot />
+    <div id="copy-status" role="status" aria-live="polite" class="sr-only"></div>
+    <script>
+      import '../scripts/copy-email';
+    </script>
+  </body>
+</html>
