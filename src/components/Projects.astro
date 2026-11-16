@@ -1,83 +1,36 @@
 ---
 import { portfolio } from '../data/portfolio';
 import RunningHeader from './RunningHeader.astro';
-import ArchitectureDiagram from './ArchitectureDiagram.astro';
+import ProjectArticle from './ProjectArticle.astro';
 
-const projectCountLabel = String(portfolio.projects.length).padStart(2, '0');
+const featuredProjects = portfolio.projects.filter((project) => project.featured);
+const featuredCountLabel = String(featuredProjects.length).padStart(2, '0');
+const totalProjects = portfolio.projects.length;
 ---
 
 <section id="projects" aria-labelledby="projects-heading" class="py-16 sm:py-24 md:py-36">
   <div class="container-editorial">
-    <RunningHeader right={`01 — ${projectCountLabel} Selected Works`} />
+    <RunningHeader right={`01 — ${featuredCountLabel} Selected Works`} />
     <h2 id="projects-heading" class="sr-only">Selected projects</h2>
 
     <div class="mt-10 space-y-20 md:mt-16 md:space-y-32">
-      {portfolio.projects.map((project, idx) => {
-        const headingId = `project-${project.index}`;
-        return (
-          <article
-            aria-labelledby={headingId}
-            class:list={[idx > 0 && 'border-t border-rule pt-16 md:pt-24']}
-          >
-            <div class="flex items-start justify-between gap-6">
-              <h3
-                id={headingId}
-                class="text-[clamp(2.25rem,5vw,4.25rem)] font-bold leading-[1.05] tracking-[-0.03em] text-ink"
-              >
-                <span class="block">{project.title} —</span>
-                <span class="block">{project.domain}</span>
-              </h3>
-              <span class="pt-2 font-mono text-sm text-ink-secondary">{project.index}</span>
-            </div>
-
-            <div class="mt-10 grid grid-cols-1 gap-8 md:mt-16 md:grid-cols-12 md:gap-8">
-              <div class="md:col-span-4">
-                <h4 class="text-sm font-bold text-ink">Task</h4>
-                <p class="mt-2 max-w-[42ch] text-sm leading-[1.6] text-ink">{project.task}</p>
-              </div>
-
-              <div class="md:col-start-5 md:col-span-5">
-                <h4 class="text-sm font-bold text-ink">Solution</h4>
-                <p class="mt-2 max-w-[42ch] text-sm leading-[1.6] text-ink">{project.solution}</p>
-              </div>
-
-              <div class="md:col-start-10 md:col-span-3">
-                <p class="text-sm text-ink-secondary">{project.role}</p>
-                <p class="mt-3 text-sm leading-[1.6] text-ink-secondary">
-                  {project.tech.join(' · ')}
-                </p>
-
-                {(project.sourceUrl || project.liveUrl) && (
-                  <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                    {project.sourceUrl && (
-                      <a
-                        href={project.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
-                      >
-                        Source code<span class="sr-only"> for {project.title} (opens in a new tab)</span>
-                      </a>
-                    )}
-                    {project.liveUrl && (
-                      <a
-                        href={project.liveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
-                      >
-                        Live demo<span class="sr-only"> for {project.title} (opens in a new tab)</span>
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {project.diagram && <ArchitectureDiagram diagram={project.diagram} />}
-          </article>
-        );
-      })}
+      {featuredProjects.map((project, idx) => (
+        <ProjectArticle project={project} showDivider={idx > 0} headingLevel="h3" />
+      ))}
     </div>
+
+    {totalProjects > featuredProjects.length && (
+      <div class="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-rule pt-8 md:mt-24 md:pt-10">
+        <p class="font-mono text-sm text-ink-secondary">
+          Showing {featuredProjects.length} of {totalProjects} projects
+        </p>
+        <a
+          href="/projects"
+          class="inline-flex min-h-[44px] items-center border border-ink-secondary px-5 text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse active:opacity-75"
+        >
+          View all {totalProjects} projects
+        </a>
+      </div>
+    )}
   </div>
 </section>

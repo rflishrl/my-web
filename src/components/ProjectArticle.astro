@@ -1,0 +1,77 @@
+---
+import type { ProjectItem } from '../data/portfolio';
+import ArchitectureDiagram from './ArchitectureDiagram.astro';
+
+interface Props {
+  project: ProjectItem;
+  showDivider?: boolean;
+  headingLevel?: 'h2' | 'h3';
+}
+
+const { project, showDivider = false, headingLevel = 'h3' } = Astro.props;
+const HeadingTag = headingLevel;
+const SubheadingTag = headingLevel === 'h2' ? 'h3' : 'h4';
+const headingId = `project-${project.index}`;
+---
+
+<article
+  aria-labelledby={headingId}
+  class:list={[showDivider && 'border-t border-rule pt-16 md:pt-24']}
+>
+  <div class="flex items-start justify-between gap-6">
+    <HeadingTag
+      id={headingId}
+      class="text-[clamp(2.25rem,5vw,4.25rem)] font-bold leading-[1.05] tracking-[-0.03em] text-ink"
+    >
+      <span class="block">{project.title} —</span>
+      <span class="block">{project.domain}</span>
+    </HeadingTag>
+    <span class="pt-2 font-mono text-sm text-ink-secondary">{project.index}</span>
+  </div>
+
+  <div class="mt-10 grid grid-cols-1 gap-8 md:mt-16 md:grid-cols-12 md:gap-8">
+    <div class="md:col-span-4">
+      <SubheadingTag class="text-sm font-bold text-ink">Task</SubheadingTag>
+      <p class="mt-2 max-w-[42ch] text-sm leading-[1.6] text-ink">{project.task}</p>
+    </div>
+
+    <div class="md:col-start-5 md:col-span-5">
+      <SubheadingTag class="text-sm font-bold text-ink">Solution</SubheadingTag>
+      <p class="mt-2 max-w-[42ch] text-sm leading-[1.6] text-ink">{project.solution}</p>
+    </div>
+
+    <div class="md:col-start-10 md:col-span-3">
+      <p class="text-sm text-ink-secondary">{project.role}</p>
+      <p class="mt-3 text-sm leading-[1.6] text-ink-secondary">
+        {project.tech.join(' · ')}
+      </p>
+
+      {(project.sourceUrl || project.liveUrl) && (
+        <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          {project.sourceUrl && (
+            <a
+              href={project.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
+            >
+              Source code<span class="sr-only"> for {project.title} (opens in a new tab)</span>
+            </a>
+          )}
+          {project.liveUrl && (
+            <a
+              href={project.liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
+            >
+              Live demo<span class="sr-only"> for {project.title} (opens in a new tab)</span>
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+
+  {project.diagram && <ArchitectureDiagram diagram={project.diagram} />}
+</article>

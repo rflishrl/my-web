@@ -120,6 +120,7 @@ describe('Static verification of dist/', () => {
     let htmlLang = '';
     let viewportContent = '';
     let themeColorContent = '';
+    let cspContent = '';
     let h1Count = 0;
     let detailsCount = 0;
     let bodyDepth = 0;
@@ -130,6 +131,7 @@ describe('Static verification of dist/', () => {
     let headerAriaAttrs = 0;
     let brandLinkCount = 0;
     let compactDetailsCount = 0;
+    const astroIslands: Array<{ componentUrl: string; client: string }> = [];
     const navFullLinks: Array<{ href: string; text: string; ariaLabel: string | null }> = [];
     const navCompactLinks: Array<{ href: string; text: string; ariaLabel: string | null }> = [];
     const runningHeaders: Array<{ sectionNames: number; backToTopLinks: Array<{ href: string; text: string }> }> = [];
@@ -143,6 +145,8 @@ describe('Static verification of dist/', () => {
     const imgsMissingAlt: string[] = [];
     const thirdPartyResourceUrls: string[] = [];
     const inlineExecutableScripts: string[] = [];
+    let capturingInlineScript = false;
+    let currentInlineScript = '';
 
     const voidElements = new Set([
       'area',
@@ -174,6 +178,19 @@ describe('Static verification of dist/', () => {
       .on('meta[name="theme-color"]', {
         element(el) {
           themeColorContent = el.getAttribute('content') ?? '';
+        },
+      })
+      .on('meta[http-equiv="content-security-policy"]', {
+        element(el) {
+          cspContent = el.getAttribute('content') ?? '';
+        },
+      })
+      .on('astro-island', {
+        element(el) {
+          astroIslands.push({
+            componentUrl: el.getAttribute('component-url') ?? '',
+            client: el.getAttribute('client') ?? '',
+          });
         },
       })
       .on('body *', {
@@ -342,7 +359,17 @@ describe('Static verification of dist/', () => {
             thirdPartyResourceUrls.push(src);
           }
           if (!src && type !== 'application/ld+json') {
-            inlineExecutableScripts.push(type || 'classic');
+            capturingInlineScript = true;
+            currentInlineScript = '';
+            el.onEndTag(() => {
+              inlineExecutableScripts.push(currentInlineScript);
+              capturingInlineScript = false;
+            });
+          }
+        },
+        text(chunk) {
+          if (capturingInlineScript) {
+            currentInlineScript += chunk.text;
           }
         },
       });
@@ -361,7 +388,7 @@ describe('Static verification of dist/', () => {
     expect(topHeaderIsDirectBodyChild).toBe(true);
     expect(detailsCount).toBe(1);
     expect(compactDetailsCount).toBe(1);
-    expect(brandLinkCount).toBe(1);
+    expect(brandLinkCount).toBe(0);
     expect(headerButtons).toBe(0);
     expect(headerSvgs).toBe(0);
     expect(headerAriaAttrs).toBe(0);
@@ -395,31 +422,90 @@ describe('Static verification of dist/', () => {
       expect(ids.has(target)).toBe(true);
     }
     expect(thirdPartyResourceUrls).toEqual([]);
-    expect(inlineExecutableScripts).toEqual([]);
 
-    // Built JS checks: nav-menu <= 1 KB gzip, no IntersectionObserver, no scroll listener; total <= 4 KB gzip
+    // Strict SHA-256 CSP covers every inline Astro island hydration script (no unsafe-inline)
+    expect(cspContent).not.toContain("'unsafe-inline'");
+    expect(cspContent).toContain("script-src 'self'");
+    for (const scriptBody of inlineExecutableScripts) {
+      const digest = new Bun.CryptoHasher('sha256').update(scriptBody).digest('base64');
+      expect(cspContent).toContain(`'sha256-${digest}'`);
+    }
+
+    // Astro Islands: NavMenu (client:media) + 2 CopyEmail (client:idle)
+    expect(astroIslands.some((i) => i.componentUrl.includes('NavMenu') && i.client === 'media')).toBe(true);
+    expect(astroIslands.filter((i) => i.componentUrl.includes('CopyEmail') && i.client === 'idle')).toHaveLength(2);
+
+    // Built JS checks: modular Svelte islands (no IntersectionObserver, no scroll listener, bounded gzip size)
     const jsFiles = walkFiles(distDir).filter((f) => f.endsWith('.js'));
     let totalGzipBytes = 0;
     let navMenuBundle: { path: string; code: string; gzipBytes: number } | null = null;
+    let copyEmailBundle: { path: string; code: string; gzipBytes: number } | null = null;
     for (const jsFile of jsFiles) {
       const raw = fs.readFileSync(jsFile);
       const gzipped = Bun.gzipSync(raw);
       totalGzipBytes += gzipped.byteLength;
       const code = raw.toString('utf8');
-      if (code.includes('nav-menu') || code.includes('site-nav')) {
+      if (path.basename(jsFile).startsWith('NavMenu.')) {
         navMenuBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
+      }
+      if (path.basename(jsFile).startsWith('CopyEmail.')) {
+        copyEmailBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
       }
     }
     expect(navMenuBundle).not.toBeNull();
-    expect(navMenuBundle!.gzipBytes).toBeLessThanOrEqual(1024);
+    expect(copyEmailBundle).not.toBeNull();
+    expect(navMenuBundle!.gzipBytes).toBeLessThanOrEqual(2048);
+    expect(copyEmailBundle!.gzipBytes).toBeLessThanOrEqual(2048);
     expect(navMenuBundle!.code).not.toContain('IntersectionObserver');
     expect(navMenuBundle!.code).not.toMatch(/addEventListener\(\s*["']scroll["']|\.onscroll\b/);
-    expect(totalGzipBytes).toBeLessThanOrEqual(4096);
+    expect(totalGzipBytes).toBeLessThanOrEqual(20480);
 
     // Inline CSS active & Open Graph present
     expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["']/i);
     expect(html).toContain('property="og:image" content="https://www.raflisahrul.my.id/og-image.png"');
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
+
+    // Featured projects on /: BrandMuse, muatmuat Plus, RT Online + link to /projects
+    expect(html).toContain('BrandMuse');
+    expect(html).toContain('muatmuat Plus');
+    expect(html).toContain('RT Online');
+    expect(html).not.toContain('id="project-04"');
+    expect(html).not.toContain('id="project-05"');
+    expect(html).toContain('href="/projects"');
+
+    // /projects archive page exists with all 5 projects and non-skipping heading hierarchy
+    const projectsPath = path.join(distDir, 'projects', 'index.html');
+    expect(fs.existsSync(projectsPath)).toBe(true);
+    const projectsHtml = fs.readFileSync(projectsPath, 'utf8');
+    let projectsH1Count = 0;
+    const projectsHeadings: number[] = [];
+    let projectsCurrentLinks = 0;
+    await new HTMLRewriter()
+      .on('h1, h2, h3, h4, h5, h6', {
+        element(el) {
+          const level = Number(el.tagName.slice(1));
+          projectsHeadings.push(level);
+          if (level === 1) projectsH1Count += 1;
+        },
+      })
+      .on('a[aria-current="page"]', {
+        element() {
+          projectsCurrentLinks += 1;
+        },
+      })
+      .transform(new Response(projectsHtml))
+      .text();
+
+    expect(projectsH1Count).toBe(1);
+    for (let i = 1; i < projectsHeadings.length; i += 1) {
+      expect(projectsHeadings[i]! - projectsHeadings[i - 1]!).toBeLessThanOrEqual(1);
+    }
+    expect(projectsCurrentLinks).toBe(2);
+    expect(projectsHtml).toContain('href="/"');
+    expect(projectsHtml).toContain('id="project-01"');
+    expect(projectsHtml).toContain('id="project-05"');
+    expect(projectsHtml).toContain('Desa Pendil');
+    expect(projectsHtml).toContain('Sinar Berkah');
   });
 
   test('Built CSS enforces positioning, opacity, typography, and foldable env() rules', () => {

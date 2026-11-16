@@ -124,6 +124,9 @@ beforeAll(async () => {
       const reqPath = new URL(req.url).pathname;
       const safePath = reqPath === '/' ? 'index.html' : reqPath.replace(/^\/+/, '');
       let filePath = path.join(distDir, safePath);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(filePath, 'index.html');
+      }
       if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
         filePath = path.join(distDir, '404.html');
         return new Response(Bun.file(filePath), {
@@ -288,7 +291,7 @@ describe('Browser verification against built dist/', () => {
   });
 
   test('compact sticky mode behavior, safe-area height, keyboard/tap dismiss, scroll opacity, and first-viewport hero', async () => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ bypassCSP: true });
     const page = await context.newPage();
 
     // First-viewport hero check at 393x852 and 402x874 with safe-area override
@@ -302,13 +305,12 @@ describe('Browser verification against built dist/', () => {
         const headerRect = header.getBoundingClientRect();
         const h1 = document.querySelector<HTMLElement>('h1.hero-wordmark')!;
         const h1Rect = h1.getBoundingClientRect();
-        const brand = document.querySelector<HTMLElement>('.nav-brand')!;
         const summary = document.querySelector<HTMLElement>('.nav-menu summary')!;
         const panelLinks = Array.from(document.querySelectorAll<HTMLElement>('.nav-links a'));
         return {
           headerClientHeight: header.clientHeight,
           headerHeight: headerRect.height,
-          brandVisible: brand.offsetParent !== null,
+          hasBrand: document.querySelector('.nav-brand') !== null,
           summaryVisible: summary.offsetParent !== null,
           anyPanelLinkVisible: panelLinks.some((a) => a.offsetParent !== null),
           h1Top: h1Rect.top,
@@ -318,7 +320,7 @@ describe('Browser verification against built dist/', () => {
         };
       });
 
-      expect(metrics.brandVisible).toBe(true);
+      expect(metrics.hasBrand).toBe(false);
       expect(metrics.summaryVisible).toBe(true);
       expect(metrics.anyPanelLinkVisible).toBe(false);
       expect(metrics.headerClientHeight).toBe(44 + 62);
@@ -413,7 +415,7 @@ describe('Browser verification against built dist/', () => {
   }, 20000);
 
   test('full sticky mode: scroll behavior, 25% height cap, hidden back-to-top, focus clearance, anchor targets, and 1280x720 hero', async () => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ bypassCSP: true });
     const page = await context.newPage();
 
     // 1280x720 whole h1 in first viewport
@@ -500,6 +502,7 @@ describe('Browser verification against built dist/', () => {
       viewport: { width: 852, height: 393 },
       hasTouch: true,
       isMobile: true,
+      bypassCSP: true,
     });
     const page = await context.newPage();
     await waitForPageReady(page, 852, 393, true);
@@ -534,7 +537,7 @@ describe('Browser verification against built dist/', () => {
   }, 15000);
 
   test('safe-area insets at 852x393 and 393x852, full-bleed Contact background, and bottom clearance', async () => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ bypassCSP: true });
     const page = await context.newPage();
 
     for (const [w, h] of [
@@ -603,6 +606,7 @@ describe('Browser verification against built dist/', () => {
     await waitForPageReady(page, 393, 852);
 
     // Compact mode: brand, Menu summary, open panel links, Hero links & Copy button
+    await page.locator('#hero [data-copy-email]').waitFor({ state: 'visible' });
     await page.locator('.nav-menu summary').click();
     const compactTargets = await page.evaluate(() => {
       const items = [
@@ -620,6 +624,8 @@ describe('Browser verification against built dist/', () => {
 
     // Full mode with coarse pointer (tablet touch e.g. 820x1180)
     await page.setViewportSize({ width: 820, height: 1180 });
+    await page.locator('#contact').scrollIntoViewIfNeeded();
+    await page.locator('#contact [data-copy-email]').waitFor({ state: 'visible' });
     const fullTargets = await page.evaluate(() => {
       const items = [
         ...document.querySelectorAll<HTMLElement>(
@@ -640,7 +646,7 @@ describe('Browser verification against built dist/', () => {
   });
 
   test('WCAG 1.4.12 text-spacing overrides: no horizontal overflow, no overlapping nav links, and anchor clearance', async () => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ bypassCSP: true });
     const page = await context.newPage();
 
     for (const [w, h] of [
@@ -689,6 +695,7 @@ describe('Browser verification against built dist/', () => {
   test('axe-core WCAG 2.2 AA audit (393 closed/open, 820, 1440), skip link, and interactive controls', async () => {
     const context = await browser.newContext({
       permissions: ['clipboard-read', 'clipboard-write'],
+      bypassCSP: true,
     });
     const page = await context.newPage();
     const consoleErrors: string[] = [];
@@ -746,11 +753,13 @@ describe('Browser verification against built dist/', () => {
     expect(firstFocused.className).toContain('skip-link');
     expect(firstFocused.href).toBe('#main-content');
 
-    // Copy email buttons
+    // Copy email buttons hydrate cleanly (client:idle) and announce on click
     const copyBtns = page.locator('[data-copy-email]');
     expect(await copyBtns.count()).toBe(2);
-    expect(await copyBtns.first().isVisible()).toBe(true);
+    await copyBtns.first().waitFor({ state: 'visible' });
     await copyBtns.first().click();
+    await page.locator('#contact').scrollIntoViewIfNeeded();
+    await copyBtns.nth(1).waitFor({ state: 'visible' });
     await copyBtns.nth(1).click();
     await page.waitForFunction(() =>
       Array.from(document.querySelectorAll('[data-copy-email]')).every(
@@ -825,6 +834,7 @@ describe('Browser verification against built dist/', () => {
         viewport: { width: 393, height: 852 },
         hasTouch: true,
         isMobile: true,
+        bypassCSP: true,
       });
       const mPage = await mCtx.newPage();
       await waitForPageReady(mPage, 393, 852, true);
@@ -843,4 +853,71 @@ describe('Browser verification against built dist/', () => {
       await wkBrowser.close();
     }
   }, 20000);
+
+  test('featured projects on / and full project list on /projects', async () => {
+    const context = await browser.newContext({ bypassCSP: true });
+    const page = await context.newPage();
+
+    await waitForPageReady(page, 1440, 900);
+    expect(await page.locator('#projects article').count()).toBe(3);
+
+    const viewAllBtn = page.locator('#projects a[href="/projects"]');
+    expect(await viewAllBtn.isVisible()).toBe(true);
+    const btnBox = await viewAllBtn.boundingBox();
+    expect(btnBox!.height).toBeGreaterThanOrEqual(44);
+
+    await viewAllBtn.click();
+    await page.waitForURL(`${baseUrl}/projects`);
+    await page.evaluate(() => document.fonts.ready);
+
+    expect(await page.locator('#projects article').count()).toBe(5);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.addScriptTag({ content: axeSource });
+    const axeProjects = await page.evaluate(async () => {
+      // @ts-expect-error injected via addScriptTag
+      return await window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+      });
+    });
+    expect(axeProjects.violations).toEqual([]);
+
+    await page.setViewportSize({ width: 393, height: 852 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.locator('a[href="/"]').first().click();
+    await page.waitForURL(`${baseUrl}/`);
+    expect(await page.locator('#projects article').count()).toBe(3);
+
+    await context.close();
+  }, 15000);
+
+  test('strict CSP permits Svelte islands hydration (CopyEmail and NavMenu) with zero console errors', async () => {
+    const context = await browser.newContext({
+      viewport: { width: 393, height: 852 },
+      permissions: ['clipboard-read', 'clipboard-write'],
+    });
+    const page = await context.newPage();
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+
+    await waitForPageReady(page, 393, 852);
+
+    const copyBtn = page.locator('[data-copy-email]').first();
+    await copyBtn.waitFor({ state: 'visible' });
+    await copyBtn.click();
+    await page.waitForFunction(() => document.querySelector('[data-copy-email]')?.textContent?.trim() === 'Copied');
+
+    const summary = page.locator('.nav-menu summary');
+    const details = page.locator('.nav-menu');
+    await summary.click();
+    expect(await details.getAttribute('open')).not.toBeNull();
+    await page.keyboard.press('Escape');
+    expect(await details.getAttribute('open')).toBeNull();
+
+    expect(consoleErrors).toEqual([]);
+    await context.close();
+  }, 15000);
 });

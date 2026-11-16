@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { portfolio } from '../data/portfolio';
-import CopyEmail from './CopyEmail.astro';
+import CopyEmail from './CopyEmail.svelte';
 
 const now = new Date();
 const buildYear = now.getFullYear();
@@ -33,7 +33,7 @@ const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf')
         >
           Email
         </a>
-        <CopyEmail email={portfolio.email} label="Copy email" />
+        <CopyEmail client:idle email={portfolio.email} label="Copy email" />
         {portfolio.profiles.map((profile) => (
           <a
             href={profile.url}

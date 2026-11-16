@@ -59,6 +59,7 @@ export interface ProjectItem {
   index: string;
   title: string;
   domain: string;
+  featured?: boolean;
   role: string;
   task: string;
   solution: string;
@@ -280,6 +281,7 @@ export const portfolio: PortfolioData = {
       index: '01',
       title: 'BrandMuse',
       domain: 'AI Brand Assistant',
+      featured: true,
       role: 'AI Engineer, Personal Project',
       task: 'Creative teams needed an assistant to answer brand guideline questions with page citations and generate campaign concepts from a creative brief, while isolating uploads against prompt injection.',
       solution: 'Built a FastAPI and React app with hybrid pgvector plus PostgreSQL full-text search via Reciprocal Rank Fusion (100% hit rate @5 on 18 test questions), LangChain structured retries, SSE streaming, Langfuse tracing, and 98/100 Lighthouse accessibility.',
@@ -326,6 +328,7 @@ export const portfolio: PortfolioData = {
       index: '02',
       title: 'muatmuat Plus',
       domain: 'B2B Spare-Parts Marketplace',
+      featured: true,
       role: 'AI Operator, Project Based',
       task: 'Heavy-vehicle buyers and verified manufacturers needed domestic and cross-border B2B marketplaces supporting factory-direct listings, subscription-gated transactions, checkout flows, and seller dashboards.',
       solution: 'Owned UI, UX, and RESTful API integration for self-contained Next.js and Tailwind CSS pages across muatmuat Plus International and Plus Domestic, shipping product catalogs, order tracking, authentication, and subscription workflows with the frontend team.',
@@ -341,6 +344,7 @@ export const portfolio: PortfolioData = {
       index: '03',
       title: 'RT Online',
       domain: 'Community Administration API',
+      featured: true,
       role: 'Web Programmer (Internship at Venturo Pro Indonesia)',
       task: 'A mobile application for community-level administration serving over 1,000 active users required a reliable RESTful backend, structured relational data model, and repeatable deployment workflow.',
       solution: 'Led the backend team in Laravel and MySQL to deliver production RESTful APIs for mobile clients, optimizing schemas and indexing for fast queries while managing end-to-end DevOps and environment configuration.',

@@ -242,7 +242,6 @@ h3 {
 }
 
 .nav-full a,
-.nav-brand,
 .nav-links a,
 .nav-menu summary,
 .back-to-top a {
@@ -268,14 +267,10 @@ h3 {
   display: none;
 }
 
-.nav-menu[open] > summary {
-  color: var(--color-ink);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
+.nav-menu[open] > summary,
+.nav-full a[aria-current='page'],
+.nav-links a[aria-current='page'],
 .nav-full a:focus-visible,
-.nav-brand:focus-visible,
 .nav-links a:focus-visible,
 .nav-menu summary:focus-visible,
 .back-to-top a:focus-visible {
@@ -307,7 +302,6 @@ h3 {
 
 @media (hover: hover) and (pointer: fine) {
   .nav-full a:hover,
-  .nav-brand:hover,
   .nav-links a:hover,
   .nav-menu summary:hover,
   .back-to-top a:hover {
@@ -337,20 +331,16 @@ h3 {
   .nav-compact {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     min-height: var(--nav-line);
   }
 
-  .nav-brand,
   .nav-menu summary {
     display: inline-flex;
     align-items: center;
+    justify-content: flex-end;
     min-height: var(--nav-line);
     min-width: var(--nav-line);
-  }
-
-  .nav-menu summary {
-    justify-content: flex-end;
   }
 
   .nav-links {
@@ -432,7 +422,6 @@ h3 {
 @media (any-pointer: coarse) {
   .nav-full a,
   .nav-links a,
-  .nav-brand,
   .nav-menu summary,
   .back-to-top a,
   #hero a,

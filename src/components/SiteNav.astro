@@ -1,36 +1,30 @@
 ---
-const navLinks = [
-  { href: '#about', label: 'About' },
-  { href: '#experience', label: 'Experience' },
-  { href: '#education', label: 'Education' },
-  { href: '#stack', label: 'Stack' },
-  { href: '#certifications', label: 'Certs' },
-  { href: '#projects', label: 'Projects' },
-  { href: '#contact', label: 'Contact' },
-] as const;
+import NavMenu from './NavMenu.svelte';
+import { getNavLinks, type NavPage } from '../data/nav';
+
+interface Props {
+  homePrefix?: string;
+  currentPage?: NavPage;
+}
+
+const { homePrefix = '', currentPage = 'home' } = Astro.props;
+const navLinks = getNavLinks(homePrefix, currentPage);
+const compactMediaQuery = '(min-width: 22.5em) and (max-width: 39.99em) and (min-height: 37.5em)';
 ---
 
 <header class="site-header" id="top">
   <nav class="site-nav" aria-label="Primary">
     <ul class="nav-full">
       {navLinks.map((item) => (
-        <li><a href={item.href}>{item.label}</a></li>
+        <li>
+          <a href={item.href} aria-current={item.current ? 'page' : undefined}>
+            {item.label}
+          </a>
+        </li>
       ))}
     </ul>
     <div class="nav-compact">
-      <a class="nav-brand" href="#top" aria-label="Rafli Sahrul, back to top">Rafli Sahrul</a>
-      <details class="nav-menu">
-        <summary>Menu</summary>
-        <ul class="nav-links">
-          {navLinks.map((item) => (
-            <li><a href={item.href}>{item.label}</a></li>
-          ))}
-        </ul>
-      </details>
+      <NavMenu client:media={compactMediaQuery} links={navLinks} compactMediaQuery={compactMediaQuery} />
     </div>
   </nav>
 </header>
-
-<script>
-  import '../scripts/nav-menu';
-</script>

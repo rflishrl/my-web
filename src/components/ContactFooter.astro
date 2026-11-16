@@ -1,7 +1,7 @@
 ---
 import { portfolio } from '../data/portfolio';
 import RunningHeader from './RunningHeader.astro';
-import CopyEmail from './CopyEmail.astro';
+import CopyEmail from './CopyEmail.svelte';
 
 const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
   month: 'long',
@@ -47,7 +47,7 @@ const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
       >
         {portfolio.email}
       </a>
-      <CopyEmail email={portfolio.email} label="Copy" inverse />
+      <CopyEmail client:idle email={portfolio.email} label="Copy" inverse />
     </div>
   </div>
 </footer>
