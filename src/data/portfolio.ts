@@ -159,6 +159,7 @@ export const portfolio: PortfolioData = {
       institution: 'BINUS University',
       program: 'Bachelor of Science in Information Systems',
       period: 'Aug 2026 — Present',
+      gpa: 'To Be Announced',
     },
     {
       institution: 'Telkom Vocational High School Malang',
@@ -234,7 +235,7 @@ export const portfolio: PortfolioData = {
     {
       label: 'Data & Infrastructure',
       items: [
-        'PostgreSQL (Neon)',
+        'PostgreSQL',
         'MySQL',
         'SQL',
         'Docker',
@@ -265,7 +266,7 @@ export const portfolio: PortfolioData = {
     },
     {
       index: '03',
-      title: 'Problem Solving (Basic/Intermediate)',
+      title: 'Problem Solving (Basic)',
       issuer: 'HackerRank',
     },
     {

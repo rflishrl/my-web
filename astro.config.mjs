@@ -6,6 +6,9 @@ export default defineConfig({
   output: 'static',
   site: 'https://www.raflisahrul.my.id',
   trailingSlash: 'never',
+  build: {
+    inlineStylesheets: 'always',
+  },
   integrations: [sitemap()],
   vite: {
     plugins: [tailwindcss()],

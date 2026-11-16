@@ -148,5 +148,10 @@ describe('Static verification of dist/', () => {
       totalGzipBytes += gzipped.byteLength;
     }
     expect(totalGzipBytes).toBeLessThanOrEqual(3072);
+
+    // Inline CSS active (no render-blocking stylesheet link) & Open Graph image present
+    expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["']/i);
+    expect(html).toContain('property="og:image" content="https://www.raflisahrul.my.id/og-image.png"');
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
   });
 });

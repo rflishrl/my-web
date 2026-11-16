@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium, type Browser } from 'playwright';
+import { chromium, webkit, type Browser } from 'playwright';
 
 const distDir = path.join(process.cwd(), 'dist');
 const axeSource = fs.readFileSync(
@@ -232,4 +232,237 @@ describe('Browser verification against built dist/', () => {
     expect(consoleErrors).toEqual([]);
     await context.close();
   }, 15000);
+
+  test('floating navbar desktop scroll reveal, sliding indicator, and responsive modes', async () => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+
+    const nav = page.locator('#floating-nav');
+    const indicator = page.locator('.floating-nav-indicator');
+
+    // Desktop initial hero state: floating nav hidden and inert
+    expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(false);
+    expect(await nav.evaluate((el) => (el as HTMLElement).inert)).toBe(true);
+    expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+
+    // Scroll past hero to #experience: floating nav reveals and tracks active section
+    await page.evaluate(() => {
+      document.getElementById('experience')?.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+    await page.waitForTimeout(350);
+
+    expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(true);
+    expect(await nav.evaluate((el) => (el as HTMLElement).inert)).toBe(false);
+    expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    expect(await page.locator('[data-nav-section="experience"]').getAttribute('aria-current')).toBe('true');
+
+    const expIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
+    expect(Number.isFinite(expIndX)).toBe(true);
+
+    // Pointer hover glides sliding indicator to hovered item, then returns on leave
+    const projectsLink = page.locator('[data-nav-section="projects"]');
+    await projectsLink.hover();
+    await page.waitForTimeout(150);
+    const projIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
+    expect(projIndX).toBeGreaterThan(expIndX);
+
+    await page.mouse.move(10, 10);
+    await page.waitForTimeout(150);
+    const restoredIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
+    expect(Math.abs(restoredIndX - expIndX)).toBeLessThan(2);
+
+    // Tablet (768px) & Foldable (640px) top floating pill fits cleanly with zero horizontal overflow
+    for (const width of [768, 640]) {
+      await page.setViewportSize({ width, height: 860 });
+      await page.waitForTimeout(150);
+      const metrics = await page.evaluate(() => {
+        const navEl = document.getElementById('floating-nav');
+        const navRect = navEl?.getBoundingClientRect();
+        const links = Array.from(document.querySelectorAll('.floating-nav-link'));
+        const wrapped = links.some((el) => el.getBoundingClientRect().height > 56);
+        return {
+          docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          navWidth: navRect?.width ?? 0,
+          navTop: navRect?.top ?? 999,
+          viewportWidth: window.innerWidth,
+          wrapped,
+        };
+      });
+      expect(metrics.docOverflow).toBe(false);
+      expect(metrics.wrapped).toBe(false);
+      expect(metrics.navWidth).toBeLessThanOrEqual(metrics.viewportWidth - 16);
+      expect(metrics.navTop).toBeLessThan(40);
+    }
+
+    // Mobile (375px) top pill & downward popover open below trigger, then navigation closes it
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.waitForTimeout(150);
+
+    const trigger = page.locator('#floating-nav-trigger');
+    await trigger.click();
+    await page.waitForTimeout(150);
+    expect(await trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const mobilePos = await page.evaluate(() => {
+      const navEl = document.getElementById('floating-nav');
+      const panelEl = document.getElementById('floating-nav-panel');
+      return {
+        navTop: navEl?.getBoundingClientRect().top ?? 999,
+        navBottom: navEl?.getBoundingClientRect().bottom ?? 0,
+        panelTop: panelEl?.getBoundingClientRect().top ?? 0,
+      };
+    });
+    expect(mobilePos.navTop).toBeLessThan(40);
+    expect(mobilePos.panelTop).toBeGreaterThanOrEqual(mobilePos.navBottom);
+
+    await projectsLink.click();
+    await page.waitForTimeout(250);
+    expect(await trigger.getAttribute('aria-expanded')).toBe('false');
+
+    // Simulated notched phone portrait (393x852, safe-area-inset-top: 59px) & landscape (852x393, left/right: 59px)
+    const cdp = await context.newCDPSession(page);
+    await page.setViewportSize({ width: 393, height: 852 });
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: { top: 59, bottom: 34, left: 0, right: 0 },
+    });
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(150);
+
+    const notchPortrait = await page.evaluate(() => {
+      const navEl = document.getElementById('floating-nav');
+      const heroEyebrow = document.querySelector('#hero span');
+      const navRect = navEl?.getBoundingClientRect();
+      return {
+        navTop: navRect?.top ?? 0,
+        navBottom: navRect?.bottom ?? 999,
+        eyebrowTop: heroEyebrow?.getBoundingClientRect().top ?? 0,
+      };
+    });
+    expect(notchPortrait.navTop).toBeGreaterThanOrEqual(59);
+    expect(notchPortrait.eyebrowTop).toBeGreaterThan(notchPortrait.navBottom);
+
+    await page.setViewportSize({ width: 852, height: 393 });
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
+      insets: { top: 0, bottom: 21, left: 59, right: 59 },
+    });
+    await page.waitForTimeout(150);
+    const notchLandscape = await page.evaluate(() => {
+      const navRect = document.getElementById('floating-nav')?.getBoundingClientRect();
+      const eyebrowTop = document.querySelector('#hero span')?.getBoundingClientRect().top ?? 0;
+      return {
+        navLeft: navRect?.left ?? 0,
+        navRight: navRect?.right ?? 999,
+        navBottom: navRect?.bottom ?? 999,
+        eyebrowTop,
+        docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+    expect(notchLandscape.navLeft).toBeGreaterThanOrEqual(59);
+    expect(notchLandscape.navRight).toBeLessThanOrEqual(852 - 59);
+    expect(notchLandscape.eyebrowTop).toBeGreaterThan(notchLandscape.navBottom);
+    expect(notchLandscape.docOverflow).toBe(false);
+
+    await context.close();
+  }, 15000);
+
+  test('webkit: desktop scroll reveal, sliding pill, tablet/foldable fit, and mobile touch popover', async () => {
+    expect(fs.existsSync(webkit.executablePath())).toBe(true);
+    const wkBrowser = await webkit.launch({ headless: true });
+
+    try {
+      // Desktop 1440x900
+      const dCtx = await wkBrowser.newContext({ viewport: { width: 1440, height: 900 } });
+      const dPage = await dCtx.newPage();
+      await dPage.goto(baseUrl, { waitUntil: 'networkidle' });
+
+      const nav = dPage.locator('#floating-nav');
+      const indicator = dPage.locator('.floating-nav-indicator');
+      expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(false);
+      expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+
+      await dPage.evaluate(() => {
+        document.getElementById('experience')?.scrollIntoView({ behavior: 'instant', block: 'start' });
+      });
+      await dPage.waitForTimeout(350);
+
+      expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(true);
+      expect(await dPage.locator('[data-nav-section="experience"]').getAttribute('aria-current')).toBe('true');
+
+      const expIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
+      await dPage.locator('[data-nav-section="projects"]').hover();
+      await dPage.waitForTimeout(200);
+      const projIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
+      expect(projIndX).toBeGreaterThan(expIndX);
+
+      // Tablet (768px) & Foldable (640px) top floating pill fit cleanly
+      for (const width of [768, 640]) {
+        await dPage.setViewportSize({ width, height: 860 });
+        await dPage.waitForTimeout(200);
+        const wkMetrics = await dPage.evaluate(() => {
+          const navRect = document.getElementById('floating-nav')?.getBoundingClientRect();
+          const wrapped = Array.from(document.querySelectorAll('.floating-nav-link')).some(
+            (el) => el.getBoundingClientRect().height > 56,
+          );
+          return {
+            docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+            navTop: navRect?.top ?? 999,
+            navWidth: navRect?.width ?? 0,
+            vw: window.innerWidth,
+            wrapped,
+          };
+        });
+        expect(wkMetrics.docOverflow).toBe(false);
+        expect(wkMetrics.wrapped).toBe(false);
+        expect(wkMetrics.navTop).toBeLessThan(40);
+        expect(wkMetrics.navWidth).toBeLessThanOrEqual(wkMetrics.vw - 16);
+      }
+      await dCtx.close();
+
+      // Mobile touch WebKit (390x844, hasTouch: true)
+      const mCtx = await wkBrowser.newContext({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      });
+      const mPage = await mCtx.newPage();
+      await mPage.goto(baseUrl, { waitUntil: 'networkidle' });
+      await mPage.waitForTimeout(200);
+
+      const heroCheck = await mPage.evaluate(() => {
+        const navRect = document.getElementById('floating-nav')?.getBoundingClientRect();
+        const eyebrowRect = document.querySelector('#hero span')?.getBoundingClientRect();
+        return {
+          docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          navTop: navRect?.top ?? 999,
+          navBottom: navRect?.bottom ?? 999,
+          eyebrowTop: eyebrowRect?.top ?? 0,
+        };
+      });
+      expect(heroCheck.docOverflow).toBe(false);
+      expect(heroCheck.navTop).toBeLessThan(40);
+      expect(heroCheck.eyebrowTop).toBeGreaterThan(heroCheck.navBottom);
+
+      const trigger = mPage.locator('#floating-nav-trigger');
+      await trigger.tap();
+      await mPage.waitForTimeout(250);
+      expect(await trigger.getAttribute('aria-expanded')).toBe('true');
+
+      const openRects = await mPage.evaluate(() => ({
+        navBottom: document.getElementById('floating-nav')?.getBoundingClientRect().bottom ?? 999,
+        panelTop: document.getElementById('floating-nav-panel')?.getBoundingClientRect().top ?? 0,
+      }));
+      expect(openRects.panelTop).toBeGreaterThanOrEqual(openRects.navBottom);
+
+      await mPage.locator('[data-nav-section="projects"]').tap();
+      await mPage.waitForTimeout(800);
+      expect(await trigger.getAttribute('aria-expanded')).toBe('false');
+      expect(await mPage.evaluate(() => window.scrollY)).toBeGreaterThan(400);
+
+      await mCtx.close();
+    } finally {
+      await wkBrowser.close();
+    }
+  }, 20000);
 });

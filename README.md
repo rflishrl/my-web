@@ -51,7 +51,7 @@ bun run test
 ## Optional Assets (Omitted When Absent)
 
 - `public/resume.pdf` — not present (the `Resume (PDF)` link is omitted; never copy `C:\Projects\assets\resume.pdf` directly as it contains private phone data).
-- `public/og-image.png` (1200x630) — not present (`og:image` / `twitter:image` are omitted and `twitter:card` falls back to `summary`).
+- `public/og-image.png` (1200x630) — present (`og:image`, `twitter:image`, and `twitter:card="summary_large_image"` active).
 - `src/assets/projects/` — no project screenshots added yet; architecture-heavy projects (`BrandMuse`, `RT Online`) render monochrome inline-SVG diagrams.
 
 ## Known Limitations Under Bun
