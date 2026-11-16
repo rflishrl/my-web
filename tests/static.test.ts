@@ -431,10 +431,11 @@ describe('Static verification of dist/', () => {
       expect(cspContent).toContain(`'sha256-${digest}'`);
     }
 
-    // Astro Islands: NavMenu (client:media) + 2 CopyEmail (client:idle) + 2 DiagramViewer (client:idle)
+    // Astro Islands: NavMenu (client:media) + 2 CopyEmail (client:idle) + 2 DiagramViewer (client:media)
     expect(astroIslands.some((i) => i.componentUrl.includes('NavMenu') && i.client === 'media')).toBe(true);
     expect(astroIslands.filter((i) => i.componentUrl.includes('CopyEmail') && i.client === 'idle')).toHaveLength(2);
-    expect(astroIslands.filter((i) => i.componentUrl.includes('DiagramViewer') && i.client === 'idle')).toHaveLength(2);
+    expect(astroIslands.filter((i) => i.componentUrl.includes('DiagramViewer') && i.client === 'media')).toHaveLength(2);
+    expect(html).not.toContain('Architecture diagram');
 
     // Built JS checks: modular Svelte islands (no IntersectionObserver, no scroll listener, bounded gzip size)
     const jsFiles = walkFiles(distDir).filter((f) => f.endsWith('.js'));

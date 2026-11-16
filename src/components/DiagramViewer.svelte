@@ -4,17 +4,19 @@
 
   interface Props {
     diagram: ArchitectureDiagramData;
+    zoomMediaQuery: string;
   }
 
   const MIN_SCALE = 0.5;
   const MAX_SCALE = 3;
   const ZOOM_STEP = 0.25;
 
-  const { diagram }: Props = $props();
+  const { diagram, zoomMediaQuery }: Props = $props();
   const uid = $props.id();
 
   let dialogEl = $state<HTMLDialogElement | null>(null);
   let viewportEl = $state<HTMLDivElement | null>(null);
+  let canZoom = $state(false);
   let isOpen = $state(false);
   let scale = $state(1);
 
@@ -166,6 +168,21 @@
     const next = scale < 1.5 ? 2 : 1;
     void setScaleCentered(next, event.clientX, event.clientY);
   }
+
+  $effect(() => {
+    const mq = window.matchMedia(zoomMediaQuery);
+    const syncZoomMode = (): void => {
+      canZoom = mq.matches;
+      if (!mq.matches && dialogEl?.open) {
+        dialogEl.close();
+      }
+    };
+    syncZoomMode();
+    mq.addEventListener('change', syncZoomMode);
+    return () => {
+      mq.removeEventListener('change', syncZoomMode);
+    };
+  });
 </script>
 
 {#snippet diagramContent(arrowId: string)}
@@ -259,29 +276,40 @@
 {/snippet}
 
 <div class="mt-10 md:mt-14">
-  <button
-    type="button"
-    onclick={openModal}
-    aria-label={`Zoom diagram: ${diagram.title}`}
-    class="group block w-full rounded-[24px] bg-surface p-5 text-left transition-colors duration-150 hover:bg-rule/45 active:opacity-85 sm:p-8 md:p-12"
-  >
-    <svg
-      role="img"
-      viewBox={`0 0 ${diagram.width} ${diagram.height}`}
-      class="h-auto w-full"
-      aria-label={diagram.title}
+  {#if canZoom}
+    <button
+      type="button"
+      onclick={openModal}
+      aria-label={`Zoom diagram: ${diagram.title}`}
+      class="group block w-full rounded-[24px] bg-surface p-5 text-left transition-colors duration-150 hover:bg-rule/45 active:opacity-85 sm:p-8 md:p-12"
     >
-      <title>{diagram.title}</title>
-      {@render diagramContent(inlineArrowId)}
-    </svg>
+      <svg
+        role="img"
+        viewBox={`0 0 ${diagram.width} ${diagram.height}`}
+        class="h-auto w-full"
+        aria-label={diagram.title}
+      >
+        <title>{diagram.title}</title>
+        {@render diagramContent(inlineArrowId)}
+      </svg>
 
-    <span class="mt-4 flex items-center justify-between gap-4 font-mono text-xs text-ink-secondary">
-      <span>Architecture diagram</span>
-      <span class="underline decoration-ink-secondary/60 underline-offset-4 group-hover:text-ink">
+      <span class="mt-4 flex justify-end font-mono text-xs text-ink-secondary underline decoration-ink-secondary/60 underline-offset-4 group-hover:text-ink">
         Zoom diagram
       </span>
-    </span>
-  </button>
+    </button>
+  {:else}
+    <div class="rounded-[24px] bg-surface p-5 sm:p-8 md:p-12">
+      <svg
+        role="img"
+        viewBox={`0 0 ${diagram.width} ${diagram.height}`}
+        class="h-auto w-full"
+        aria-label={diagram.title}
+      >
+        <title>{diagram.title}</title>
+        {@render diagramContent(inlineArrowId)}
+      </svg>
+    </div>
+  {/if}
 </div>
 
 <dialog
@@ -294,15 +322,11 @@
   onpointerup={handleDialogPointerUp}
 >
   {#if isOpen}
+    <h2 id={dialogTitleId} class="sr-only">{diagram.title}</h2>
     <div class="diagram-dialog-header">
-      <div class="min-w-0 flex-1">
-        <h2 id={dialogTitleId} class="text-sm font-bold leading-snug text-ink">
-          {diagram.title}
-        </h2>
-        <p class="font-mono text-xs text-ink-secondary" aria-live="polite">
-          {zoomPercent}%
-        </p>
-      </div>
+      <p class="font-mono text-xs text-ink-secondary" aria-live="polite">
+        {zoomPercent}%
+      </p>
 
       <div class="flex shrink-0 items-center gap-2">
         <button

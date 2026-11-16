@@ -925,6 +925,13 @@ describe('Browser verification against built dist/', () => {
 
     expect(consoleErrors).toEqual([]);
     await context.close();
+
+    // Desktop (1440x900, fine pointer) renders static diagram without a Zoom diagram button
+    const desktopContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const desktopPage = await desktopContext.newPage();
+    await waitForPageReady(desktopPage, 1440, 900);
+    expect(await desktopPage.locator('button[aria-label^="Zoom diagram:"]').count()).toBe(0);
+    await desktopContext.close();
   }, 15000);
 
   test('architecture diagram opens zoom modal on tap without changing outer page layout', async () => {
@@ -943,6 +950,7 @@ describe('Browser verification against built dist/', () => {
     await waitForPageReady(page, 393, 852);
     const trigger = page.locator('button[aria-label^="Zoom diagram:"]').first();
     await trigger.scrollIntoViewIfNeeded();
+    await trigger.waitFor({ state: 'visible' });
     const beforeScrollY = await page.evaluate(() => window.scrollY);
     const beforeBodyWidth = await page.evaluate(() => document.body.getBoundingClientRect().width);
 
@@ -994,5 +1002,12 @@ describe('Browser verification against built dist/', () => {
 
     expect(consoleErrors).toEqual([]);
     await context.close();
+
+    // Desktop (1440x900, fine pointer) renders static diagram without a Zoom diagram button
+    const desktopContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const desktopPage = await desktopContext.newPage();
+    await waitForPageReady(desktopPage, 1440, 900);
+    expect(await desktopPage.locator('button[aria-label^="Zoom diagram:"]').count()).toBe(0);
+    await desktopContext.close();
   }, 15000);
 });

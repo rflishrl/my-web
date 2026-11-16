@@ -7,6 +7,7 @@ interface Props {
 }
 
 const { diagram } = Astro.props;
+const zoomMediaQuery = '(max-width: 63.999em), (any-pointer: coarse)';
 ---
 
-<DiagramViewer client:idle diagram={diagram} />
+<DiagramViewer client:media={zoomMediaQuery} diagram={diagram} zoomMediaQuery={zoomMediaQuery} />
