@@ -7,7 +7,6 @@ const currentLabelEl = document.getElementById('floating-nav-current');
 const foldLabelEl = nav?.querySelector<HTMLElement>('[data-fold-current]') ?? null;
 const indicator = panel?.querySelector<HTMLElement>('.floating-nav-indicator') ?? null;
 const links = Array.from(panel?.querySelectorAll<HTMLAnchorElement>('[data-nav-section]') ?? []);
-const heroEl = document.getElementById('hero');
 
 if (nav && panel && links.length > 0) {
   const linkById = new Map<string, HTMLAnchorElement>();
@@ -21,13 +20,13 @@ if (nav && panel && links.length > 0) {
     if (section) sections.push(section);
   }
 
-  const desktopMq = window.matchMedia('(min-width: 64rem)');
   const inlineMq = window.matchMedia('(min-width: 40rem)');
   const supportsPopover = Object.hasOwn(HTMLElement.prototype, 'popover');
 
   let activeId = links[0]?.dataset.navSection ?? 'hero';
   let previewId: string | null = null;
   let scrollLockUntil = 0;
+  let scrollTicking = false;
 
   const moveIndicatorTo = (targetId: string, animate = true) => {
     if (!indicator || !inlineMq.matches) return;
@@ -63,11 +62,44 @@ if (nav && panel && links.length > 0) {
       }
     }
 
-    const activeLabel = linkById.get(nextId)?.dataset.navLabel ?? linkById.get(nextId)?.getAttribute('aria-label') ?? '';
+    const activeLabel = linkById.get(nextId)?.getAttribute('aria-label') ?? '';
     if (currentLabelEl && activeLabel) currentLabelEl.textContent = activeLabel;
     if (foldLabelEl && activeLabel) foldLabelEl.textContent = activeLabel;
 
     if (!previewId) moveIndicatorTo(nextId);
+  };
+
+  // Compute active section against viewport reading line so scrolling up through tall sections never goes stale
+  const updateSpy = () => {
+    scrollTicking = false;
+    if (performance.now() < scrollLockUntil) return;
+
+    const y = window.scrollY;
+    if (y < 40) {
+      setActive('hero');
+      return;
+    }
+    if (y + window.innerHeight >= document.documentElement.scrollHeight - 24) {
+      setActive('contact');
+      return;
+    }
+
+    const anchorY = window.innerHeight * 0.35;
+    let current = sections[0]?.id ?? 'hero';
+    for (const section of sections) {
+      if (section.getBoundingClientRect().top <= anchorY) {
+        current = section.id;
+      } else {
+        break;
+      }
+    }
+    setActive(current);
+  };
+
+  const scheduleSpy = () => {
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(updateSpy);
   };
 
   const syncLayoutMode = () => {
@@ -88,65 +120,8 @@ if (nav && panel && links.length > 0) {
     requestAnimationFrame(() => moveIndicatorTo(previewId ?? activeId, false));
   };
 
-  const syncHeroVisibility = (heroVisible: boolean) => {
-    const show = !desktopMq.matches || !heroVisible;
-    nav.classList.toggle('is-visible', show);
-    nav.inert = !show;
-    if (show) {
-      requestAnimationFrame(() => moveIndicatorTo(previewId ?? activeId, false));
-    }
-  };
-
-  // Show navbar after passing Hero on desktop; always accessible on tablet, foldables, and mobile
-  let heroCurrentlyVisible = true;
-  if (heroEl && 'IntersectionObserver' in window) {
-    const heroObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        heroCurrentlyVisible = entry.isIntersecting;
-        syncHeroVisibility(heroCurrentlyVisible);
-      },
-      { threshold: 0.05 },
-    );
-    heroObserver.observe(heroEl);
-  } else {
-    heroCurrentlyVisible = false;
-    syncHeroVisibility(false);
-  }
-
-  // Track which section the user is reading without polling
-  if (sections.length > 0 && 'IntersectionObserver' in window) {
-    const spyObserver = new IntersectionObserver(
-      (entries) => {
-        if (performance.now() < scrollLockUntil) return;
-        const intersecting = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
-        const topMatch = intersecting[0];
-        if (topMatch?.target.id) {
-          setActive(topMatch.target.id);
-        }
-      },
-      { rootMargin: '-35% 0px -55% 0px', threshold: 0 },
-    );
-    for (const section of sections) spyObserver.observe(section);
-  }
-
-  // Clamp top and bottom scroll extremes where intersection margins may leave Hero or Contact
-  document.addEventListener(
-    'scroll',
-    () => {
-      if (performance.now() < scrollLockUntil) return;
-      const y = window.scrollY;
-      if (y < 40) {
-        setActive('hero');
-      } else if (y + window.innerHeight >= document.documentElement.scrollHeight - 24) {
-        setActive('contact');
-      }
-    },
-    { passive: true },
-  );
+  document.addEventListener('scroll', scheduleSpy, { passive: true });
+  window.addEventListener('resize', scheduleSpy, { passive: true });
 
   // Slide background pill cleanly across hovered or keyboard-focused items
   for (const link of links) {
@@ -206,7 +181,6 @@ if (nav && panel && links.length > 0) {
     });
   }
 
-  desktopMq.addEventListener('change', () => syncHeroVisibility(heroCurrentlyVisible));
   inlineMq.addEventListener('change', syncLayoutMode);
   if ('ResizeObserver' in window) {
     const resizeObserver = new ResizeObserver(() => moveIndicatorTo(previewId ?? activeId, false));
@@ -214,6 +188,5 @@ if (nav && panel && links.length > 0) {
   }
 
   syncLayoutMode();
-  syncHeroVisibility(heroCurrentlyVisible);
-  setActive('hero');
+  updateSpy();
 }

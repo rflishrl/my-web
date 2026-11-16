@@ -2,7 +2,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { portfolio } from '../data/portfolio';
-import SiteNav from './SiteNav.astro';
 import CopyEmail from './CopyEmail.astro';
 
 const now = new Date();
@@ -22,7 +21,6 @@ const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf')
       <span>Selected Works · {buildYear}</span>
       <span>{buildMonthYear}</span>
     </div>
-    <SiteNav />
   </div>
 
   <div class="container-editorial mt-auto pt-12 sm:pt-16 lg:pt-32">

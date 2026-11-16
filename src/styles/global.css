@@ -186,14 +186,26 @@
   }
 }
 
-/* Clear top floating pill on mobile/foldable/tablet Hero (unlayered so it overrides utility pt-*) */
-@media (max-width: 63.999rem) {
-  #hero {
-    padding-top: calc(5.5rem + env(safe-area-inset-top));
-  }
+/* Clear top floating pill across all viewports (unlayered so it overrides utility pt-*) */
+#hero {
+  padding-top: calc(5.5rem + env(safe-area-inset-top));
 }
 
-/* Floating section navbar: top floating pill across all platforms; hidden on Hero at desktop (>= 64rem) */
+/* Soft frosted safe-area scrim so scrolled text does not clash behind iPhone status bar/Dynamic Island */
+.safe-top-scrim {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 35;
+  pointer-events: none;
+  background-color: rgb(255 255 255 / 0.78);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
+
+/* Floating section navbar: always-on top floating pill across all platforms */
 .floating-nav {
   --floating-nav-top: max(0.875rem, calc(env(safe-area-inset-top) + 0.375rem));
   position: fixed;
@@ -505,20 +517,10 @@
   }
 }
 
-/* Desktop (>= 64rem): top-centered floating pill hidden until Hero exits viewport */
+/* Desktop (>= 64rem): always-on top-centered floating pill */
 @media (min-width: 64rem) {
   .floating-nav {
     top: max(1.25rem, calc(env(safe-area-inset-top) + 0.5rem));
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, -14px);
-  }
-
-  .floating-nav.is-visible,
-  .floating-nav:focus-within {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translate(-50%, 0);
   }
 
   .floating-nav-link {
@@ -536,12 +538,6 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .floating-nav {
-    transition:
-      opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
-      transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
   .floating-nav-indicator {
     transition:
       transform 280ms cubic-bezier(0.22, 1, 0.36, 1),

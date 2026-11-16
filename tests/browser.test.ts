@@ -167,10 +167,10 @@ describe('Browser verification against built dist/', () => {
 
     expect(results.violations).toEqual([]);
 
-    // Exercise navigation anchor links
-    const navLinks = page.locator('nav[aria-label="Primary"] a');
-    expect(await navLinks.count()).toBe(7);
-    await navLinks.first().click();
+    // Exercise primary section navigation anchor links (8 items inside always-on pill)
+    const navLinks = page.locator('nav[aria-label="Primary"] [data-nav-section]');
+    expect(await navLinks.count()).toBe(8);
+    await page.locator('nav[aria-label="Primary"] [data-nav-section="about"]').click();
     expect(page.url()).toContain('#about');
 
     // Copy email buttons become visible under JS and announce on click
@@ -233,7 +233,7 @@ describe('Browser verification against built dist/', () => {
     await context.close();
   }, 15000);
 
-  test('floating navbar desktop scroll reveal, sliding indicator, and responsive modes', async () => {
+  test('floating navbar desktop always-on reveal, bidirectional scroll-spy, sliding indicator, and responsive modes', async () => {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     await page.goto(baseUrl, { waitUntil: 'networkidle' });
@@ -241,20 +241,27 @@ describe('Browser verification against built dist/', () => {
     const nav = page.locator('#floating-nav');
     const indicator = page.locator('.floating-nav-indicator');
 
-    // Desktop initial hero state: floating nav hidden and inert
-    expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(false);
-    expect(await nav.evaluate((el) => (el as HTMLElement).inert)).toBe(true);
-    expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+    // Desktop initial hero state: floating nav always visible and clearing Hero eyebrow
+    expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    expect(await nav.evaluate((el) => (el as HTMLElement).inert)).toBe(false);
+    expect(await page.locator('[data-nav-section="hero"]').getAttribute('aria-current')).toBe('true');
+    const desktopHeroMetrics = await page.evaluate(() => ({
+      navBottom: document.getElementById('floating-nav')?.getBoundingClientRect().bottom ?? 999,
+      eyebrowTop: document.querySelector('#hero span')?.getBoundingClientRect().top ?? 0,
+    }));
+    expect(desktopHeroMetrics.eyebrowTop).toBeGreaterThan(desktopHeroMetrics.navBottom);
 
-    // Scroll past hero to #experience: floating nav reveals and tracks active section
+    // Scroll down to #education then up into #experience: active indicator updates bidirectionally
+    await page.evaluate(() => {
+      document.getElementById('education')?.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+    await page.waitForTimeout(200);
+    expect(await page.locator('[data-nav-section="education"]').getAttribute('aria-current')).toBe('true');
+
     await page.evaluate(() => {
       document.getElementById('experience')?.scrollIntoView({ behavior: 'instant', block: 'start' });
     });
-    await page.waitForTimeout(350);
-
-    expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(true);
-    expect(await nav.evaluate((el) => (el as HTMLElement).inert)).toBe(false);
-    expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    await page.waitForTimeout(250);
     expect(await page.locator('[data-nav-section="experience"]').getAttribute('aria-current')).toBe('true');
 
     const expIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
@@ -367,7 +374,7 @@ describe('Browser verification against built dist/', () => {
     await context.close();
   }, 15000);
 
-  test('webkit: desktop scroll reveal, sliding pill, tablet/foldable fit, and mobile touch popover', async () => {
+  test('webkit: desktop always-on navbar, sliding pill, tablet/foldable fit, and mobile touch popover', async () => {
     expect(fs.existsSync(webkit.executablePath())).toBe(true);
     const wkBrowser = await webkit.launch({ headless: true });
 
@@ -379,15 +386,14 @@ describe('Browser verification against built dist/', () => {
 
       const nav = dPage.locator('#floating-nav');
       const indicator = dPage.locator('.floating-nav-indicator');
-      expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(false);
-      expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('0');
+      expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+      expect(await dPage.locator('[data-nav-section="hero"]').getAttribute('aria-current')).toBe('true');
 
       await dPage.evaluate(() => {
         document.getElementById('experience')?.scrollIntoView({ behavior: 'instant', block: 'start' });
       });
       await dPage.waitForTimeout(350);
 
-      expect(await nav.evaluate((el) => el.classList.contains('is-visible'))).toBe(true);
       expect(await dPage.locator('[data-nav-section="experience"]').getAttribute('aria-current')).toBe('true');
 
       const expIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
