@@ -92,6 +92,61 @@
   }
 }
 
+/* Native top-layer diagram zoom modal (zero outer layout shift, zero backdrop-filter) */
+.diagram-dialog {
+  width: min(94vw, 72rem);
+  max-width: calc(100vw - max(1.5rem, var(--safe-left) + var(--safe-right)));
+  max-height: calc(90dvh - var(--safe-top) - var(--safe-bottom));
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--color-ink);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+.diagram-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.diagram-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+.diagram-dialog::backdrop {
+  background-color: rgba(10, 10, 10, 0.72);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.diagram-dialog-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-rule);
+  background-color: var(--color-canvas);
+}
+
+.diagram-dialog-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  touch-action: pan-x pan-y;
+  background-color: var(--color-surface);
+  padding: 1rem;
+}
+
+.diagram-dialog-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: fit-content;
+  min-height: 100%;
+}
+
 /* Skip link: visually hidden until focused, absolute top-left so layout never shifts */
 .skip-link {
   position: absolute;

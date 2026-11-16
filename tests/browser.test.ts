@@ -917,6 +917,81 @@ describe('Browser verification against built dist/', () => {
     await page.keyboard.press('Escape');
     expect(await details.getAttribute('open')).toBeNull();
 
+    const diagramTrigger = page.locator('button[aria-label^="Zoom diagram:"]').first();
+    await diagramTrigger.scrollIntoViewIfNeeded();
+    await diagramTrigger.click();
+    await page.locator('dialog.diagram-dialog[open]').getByRole('button', { name: 'Zoom in' }).click();
+    await page.locator('dialog.diagram-dialog[open]').getByRole('button', { name: 'Close' }).click();
+
+    expect(consoleErrors).toEqual([]);
+    await context.close();
+  }, 15000);
+
+  test('architecture diagram opens zoom modal on tap without changing outer page layout', async () => {
+    const context = await browser.newContext({
+      viewport: { width: 393, height: 852 },
+      hasTouch: true,
+      isMobile: true,
+      bypassCSP: true,
+    });
+    const page = await context.newPage();
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+
+    await waitForPageReady(page, 393, 852);
+    const trigger = page.locator('button[aria-label^="Zoom diagram:"]').first();
+    await trigger.scrollIntoViewIfNeeded();
+    const beforeScrollY = await page.evaluate(() => window.scrollY);
+    const beforeBodyWidth = await page.evaluate(() => document.body.getBoundingClientRect().width);
+
+    await trigger.tap();
+    const dialog = page.locator('dialog.diagram-dialog[open]');
+    await dialog.waitFor({ state: 'visible' });
+
+    const modalSvg = dialog.locator('svg');
+    const initialWidth = Number(await modalSvg.getAttribute('width'));
+    expect(initialWidth).toBe(950);
+
+    // Zoom in and out inside the dialog without changing outer webpage dimensions
+    await dialog.getByRole('button', { name: 'Zoom in' }).click();
+    expect(Number(await modalSvg.getAttribute('width'))).toBe(Math.round(950 * 1.25));
+    expect(await dialog.getByText('125%').isVisible()).toBe(true);
+
+    const duringZoom = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+      bodyWidth: document.body.getBoundingClientRect().width,
+      scrollY: window.scrollY,
+    }));
+    expect(duringZoom.scrollWidth).toBeLessThanOrEqual(duringZoom.innerWidth);
+    expect(duringZoom.bodyWidth).toBe(beforeBodyWidth);
+    expect(duringZoom.scrollY).toBe(beforeScrollY);
+
+    await dialog.getByRole('button', { name: 'Zoom out' }).click();
+    await dialog.getByRole('button', { name: 'Zoom out' }).click();
+    expect(Number(await modalSvg.getAttribute('width'))).toBe(Math.round(950 * 0.75));
+    await dialog.getByRole('button', { name: 'Reset' }).click();
+    expect(Number(await modalSvg.getAttribute('width'))).toBe(950);
+
+    // axe-core WCAG 2.2 AA while modal is open
+    await page.addScriptTag({ content: axeSource });
+    const axeModal = await page.evaluate(async () => {
+      // @ts-expect-error injected via addScriptTag
+      return await window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+      });
+    });
+    expect(axeModal.violations).toEqual([]);
+
+    // Escape closes modal and restores focus to trigger button
+    await page.keyboard.press('Escape');
+    expect(await page.locator('dialog.diagram-dialog[open]').count()).toBe(0);
+    expect(
+      await page.evaluate(() => document.activeElement?.getAttribute('aria-label')?.startsWith('Zoom diagram:')),
+    ).toBe(true);
+
     expect(consoleErrors).toEqual([]);
     await context.close();
   }, 15000);

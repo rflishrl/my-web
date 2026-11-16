@@ -1,0 +1,371 @@
+<script lang="ts">
+  import { tick } from 'svelte';
+  import type { ArchitectureDiagramData } from '../data/portfolio';
+
+  interface Props {
+    diagram: ArchitectureDiagramData;
+  }
+
+  const MIN_SCALE = 0.5;
+  const MAX_SCALE = 3;
+  const ZOOM_STEP = 0.25;
+
+  const { diagram }: Props = $props();
+  const uid = $props.id();
+
+  let dialogEl = $state<HTMLDialogElement | null>(null);
+  let viewportEl = $state<HTMLDivElement | null>(null);
+  let isOpen = $state(false);
+  let scale = $state(1);
+
+  const nodeById = $derived(new Map(diagram.nodes.map((node) => [node.id, node])));
+  const outCountByFrom = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const edge of diagram.edges) {
+      counts.set(edge.from, (counts.get(edge.from) ?? 0) + 1);
+    }
+    return counts;
+  });
+
+  const inlineArrowId = `arrow-${uid}-inline`;
+  const modalArrowId = `arrow-${uid}-modal`;
+  const dialogTitleId = `diagram-title-${uid}`;
+
+  const scaledWidth = $derived(Math.round(diagram.width * scale));
+  const scaledHeight = $derived(Math.round(diagram.height * scale));
+  const zoomPercent = $derived(Math.round(scale * 100));
+
+  const activePointers = new Map<number, { x: number; y: number }>();
+  let pinchStartDistance: number | null = null;
+  let pinchStartScale = 1;
+  let pressedOutside = false;
+
+  function clampScale(next: number): number {
+    return Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.round(next * 100) / 100));
+  }
+
+  async function setScaleCentered(nextScale: number, anchorX?: number, anchorY?: number): Promise<void> {
+    const clamped = clampScale(nextScale);
+    if (clamped === scale || !viewportEl) {
+      scale = clamped;
+      return;
+    }
+
+    const prevScale = scale;
+    const rect = viewportEl.getBoundingClientRect();
+    const viewX = anchorX !== undefined ? anchorX - rect.left : viewportEl.clientWidth / 2;
+    const viewY = anchorY !== undefined ? anchorY - rect.top : viewportEl.clientHeight / 2;
+    const contentX = (viewportEl.scrollLeft + viewX) / prevScale;
+    const contentY = (viewportEl.scrollTop + viewY) / prevScale;
+
+    scale = clamped;
+    await tick();
+
+    viewportEl.scrollLeft = Math.max(0, contentX * clamped - viewX);
+    viewportEl.scrollTop = Math.max(0, contentY * clamped - viewY);
+  }
+
+  async function openModal(): Promise<void> {
+    if (!dialogEl) return;
+    scale = 1;
+    isOpen = true;
+    await tick();
+    if (!dialogEl.open) {
+      dialogEl.showModal();
+    }
+    if (viewportEl) {
+      viewportEl.scrollLeft = 0;
+      viewportEl.scrollTop = 0;
+    }
+  }
+
+  function closeModal(): void {
+    dialogEl?.close();
+  }
+
+  function handleDialogClose(): void {
+    isOpen = false;
+    activePointers.clear();
+    pinchStartDistance = null;
+  }
+
+  function isOutsideDialog(event: PointerEvent): boolean {
+    if (!dialogEl) return false;
+    const r = dialogEl.getBoundingClientRect();
+    return (
+      event.clientX < r.left ||
+      event.clientX > r.right ||
+      event.clientY < r.top ||
+      event.clientY > r.bottom
+    );
+  }
+
+  function handleDialogPointerDown(event: PointerEvent): void {
+    if ('closedBy' in HTMLDialogElement.prototype) return;
+    pressedOutside = isOutsideDialog(event);
+  }
+
+  function handleDialogPointerUp(event: PointerEvent): void {
+    if ('closedBy' in HTMLDialogElement.prototype) return;
+    if (pressedOutside && isOutsideDialog(event)) {
+      closeModal();
+    }
+    pressedOutside = false;
+  }
+
+  function getPointerMetrics(): { distance: number; midX: number; midY: number } | null {
+    if (activePointers.size < 2) return null;
+    const [a, b] = Array.from(activePointers.values());
+    if (!a || !b) return null;
+    return {
+      distance: Math.hypot(b.x - a.x, b.y - a.y),
+      midX: (a.x + b.x) / 2,
+      midY: (a.y + b.y) / 2,
+    };
+  }
+
+  function handleViewportPointerDown(event: PointerEvent): void {
+    activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (activePointers.size === 2) {
+      pinchStartDistance = getPointerMetrics()?.distance ?? null;
+      pinchStartScale = scale;
+    }
+  }
+
+  function handleViewportPointerMove(event: PointerEvent): void {
+    if (!activePointers.has(event.pointerId)) return;
+    activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (activePointers.size === 2 && pinchStartDistance && pinchStartDistance > 0) {
+      const metrics = getPointerMetrics();
+      if (metrics) {
+        void setScaleCentered(
+          pinchStartScale * (metrics.distance / pinchStartDistance),
+          metrics.midX,
+          metrics.midY,
+        );
+      }
+    }
+  }
+
+  function handleViewportPointerUp(event: PointerEvent): void {
+    activePointers.delete(event.pointerId);
+    if (activePointers.size < 2) {
+      pinchStartDistance = null;
+    }
+  }
+
+  function handleWheel(event: WheelEvent): void {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    const delta = event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+    void setScaleCentered(scale + delta, event.clientX, event.clientY);
+  }
+
+  function handleDoubleClick(event: MouseEvent): void {
+    const next = scale < 1.5 ? 2 : 1;
+    void setScaleCentered(next, event.clientX, event.clientY);
+  }
+</script>
+
+{#snippet diagramContent(arrowId: string)}
+  <defs>
+    <marker
+      id={arrowId}
+      viewBox="0 0 10 10"
+      refX="8"
+      refY="5"
+      markerWidth="6"
+      markerHeight="6"
+      orient="auto-start-reverse"
+    >
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#0A0A0A" />
+    </marker>
+  </defs>
+
+  {#each diagram.edges as edge (`${arrowId}-${edge.from}-${edge.to}`)}
+    {@const from = nodeById.get(edge.from)}
+    {@const to = nodeById.get(edge.to)}
+    {#if from && to}
+      {@const x1 = from.x + from.w}
+      {@const y1 = from.y + from.h / 2}
+      {@const x2 = to.x}
+      {@const y2 = to.y + to.h / 2}
+      {@const isSingleStraight = (outCountByFrom.get(edge.from) ?? 0) === 1 && y1 === y2}
+      {@const midX = isSingleStraight ? Math.round((x1 + x2) / 2) : x1 + 24}
+      {@const labelX = isSingleStraight ? midX : Math.round((midX + x2 - 8) / 2)}
+      {@const labelY = y2 - 8}
+      <g>
+        <path
+          d={`M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`}
+          fill="none"
+          stroke="#0A0A0A"
+          stroke-width="1.5"
+          marker-end={`url(#${arrowId})`}
+        />
+        {#if edge.label}
+          <text
+            x={labelX}
+            y={labelY}
+            text-anchor="middle"
+            fill="#525252"
+            font-size="10.5"
+            font-family="JetBrains Mono Variable, ui-monospace, monospace"
+          >
+            {edge.label}
+          </text>
+        {/if}
+      </g>
+    {/if}
+  {/each}
+
+  {#each diagram.nodes as node (`${arrowId}-${node.id}`)}
+    <g>
+      <rect
+        x={node.x}
+        y={node.y}
+        width={node.w}
+        height={node.h}
+        rx="10"
+        fill="#FFFFFF"
+        stroke="#0A0A0A"
+        stroke-width="1.5"
+      />
+      <text
+        x={node.x + node.w / 2}
+        y={node.sublabel ? node.y + node.h / 2 - 4 : node.y + node.h / 2 + 5}
+        text-anchor="middle"
+        fill="#0A0A0A"
+        font-size="14"
+        font-weight="700"
+        font-family="Inter Variable, system-ui, sans-serif"
+      >
+        {node.label}
+      </text>
+      {#if node.sublabel}
+        <text
+          x={node.x + node.w / 2}
+          y={node.y + node.h / 2 + 16}
+          text-anchor="middle"
+          fill="#525252"
+          font-size="11.5"
+          font-family="JetBrains Mono Variable, ui-monospace, monospace"
+        >
+          {node.sublabel}
+        </text>
+      {/if}
+    </g>
+  {/each}
+{/snippet}
+
+<div class="mt-10 md:mt-14">
+  <button
+    type="button"
+    onclick={openModal}
+    aria-label={`Zoom diagram: ${diagram.title}`}
+    class="group block w-full rounded-[24px] bg-surface p-5 text-left transition-colors duration-150 hover:bg-rule/45 active:opacity-85 sm:p-8 md:p-12"
+  >
+    <svg
+      role="img"
+      viewBox={`0 0 ${diagram.width} ${diagram.height}`}
+      class="h-auto w-full"
+      aria-label={diagram.title}
+    >
+      <title>{diagram.title}</title>
+      {@render diagramContent(inlineArrowId)}
+    </svg>
+
+    <span class="mt-4 flex items-center justify-between gap-4 font-mono text-xs text-ink-secondary">
+      <span>Architecture diagram</span>
+      <span class="underline decoration-ink-secondary/60 underline-offset-4 group-hover:text-ink">
+        Zoom diagram
+      </span>
+    </span>
+  </button>
+</div>
+
+<dialog
+  bind:this={dialogEl}
+  class="diagram-dialog"
+  aria-labelledby={dialogTitleId}
+  {...({ closedby: 'any' } as Record<string, string>)}
+  onclose={handleDialogClose}
+  onpointerdown={handleDialogPointerDown}
+  onpointerup={handleDialogPointerUp}
+>
+  {#if isOpen}
+    <div class="diagram-dialog-header">
+      <div class="min-w-0 flex-1">
+        <h2 id={dialogTitleId} class="text-sm font-bold leading-snug text-ink">
+          {diagram.title}
+        </h2>
+        <p class="font-mono text-xs text-ink-secondary" aria-live="polite">
+          {zoomPercent}%
+        </p>
+      </div>
+
+      <div class="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onclick={() => setScaleCentered(scale - ZOOM_STEP)}
+          disabled={scale <= MIN_SCALE}
+          aria-label="Zoom out"
+          class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center border border-ink-secondary px-3 font-mono text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse disabled:opacity-40"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          onclick={() => setScaleCentered(1)}
+          class="inline-flex min-h-[44px] items-center justify-center border border-ink-secondary px-3 text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse"
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          onclick={() => setScaleCentered(scale + ZOOM_STEP)}
+          disabled={scale >= MAX_SCALE}
+          aria-label="Zoom in"
+          class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center border border-ink-secondary px-3 font-mono text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse disabled:opacity-40"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onclick={closeModal}
+          class="inline-flex min-h-[44px] items-center justify-center border border-ink bg-ink px-4 text-sm text-ink-inverse transition-opacity duration-150 hover:opacity-85"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable region needs tabindex="0" so keyboard users can pan zoomed diagrams with arrow keys. -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div
+      bind:this={viewportEl}
+      role="region"
+      aria-label={diagram.title}
+      tabindex="0"
+      class="diagram-dialog-viewport"
+      onpointerdown={handleViewportPointerDown}
+      onpointermove={handleViewportPointerMove}
+      onpointerup={handleViewportPointerUp}
+      onpointercancel={handleViewportPointerUp}
+      onwheel={handleWheel}
+      ondblclick={handleDoubleClick}
+    >
+      <div class="diagram-dialog-canvas">
+        <svg
+          aria-hidden="true"
+          viewBox={`0 0 ${diagram.width} ${diagram.height}`}
+          width={scaledWidth}
+          height={scaledHeight}
+          class="block shrink-0"
+        >
+          {@render diagramContent(modalArrowId)}
+        </svg>
+      </div>
+    </div>
+  {/if}
+</dialog>
