@@ -15,7 +15,7 @@ const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
 const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf'));
 ---
 
-<header id="hero" class="min-h-[100svh] flex flex-col justify-between pt-6 pb-6 sm:pt-8 sm:pb-8 lg:pt-8 lg:pb-6">
+<section id="hero" class="first-section flex flex-col justify-between pt-6 pb-6 sm:pt-8 sm:pb-8 lg:pt-8 lg:pb-6">
   <div class="container-editorial hero-stagger-1">
     <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm text-ink-secondary">
       <span>Selected Works · {buildYear}</span>
@@ -59,4 +59,4 @@ const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf')
       <span class="wm-line">Rafli</span> <span class="wm-line">Sahrul</span>
     </h1>
   </div>
-</header>
+</section>

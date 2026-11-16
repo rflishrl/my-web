@@ -1,0 +1,36 @@
+---
+const navLinks = [
+  { href: '#about', label: 'About' },
+  { href: '#experience', label: 'Experience' },
+  { href: '#education', label: 'Education' },
+  { href: '#stack', label: 'Stack' },
+  { href: '#certifications', label: 'Certs' },
+  { href: '#projects', label: 'Projects' },
+  { href: '#contact', label: 'Contact' },
+] as const;
+---
+
+<header class="site-header" id="top">
+  <nav class="site-nav" aria-label="Primary">
+    <ul class="nav-full">
+      {navLinks.map((item) => (
+        <li><a href={item.href}>{item.label}</a></li>
+      ))}
+    </ul>
+    <div class="nav-compact">
+      <a class="nav-brand" href="#top" aria-label="Rafli Sahrul, back to top">Rafli Sahrul</a>
+      <details class="nav-menu">
+        <summary>Menu</summary>
+        <ul class="nav-links">
+          {navLinks.map((item) => (
+            <li><a href={item.href}>{item.label}</a></li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  </nav>
+</header>
+
+<script>
+  import '../scripts/nav-menu';
+</script>

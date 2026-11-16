@@ -1,13 +1,84 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium, webkit, type Browser } from 'playwright';
+import { chromium, webkit, type Browser, type Page } from 'playwright';
 
 const distDir = path.join(process.cwd(), 'dist');
 const axeSource = fs.readFileSync(
   path.join(process.cwd(), 'node_modules', 'axe-core', 'axe.min.js'),
   'utf8',
 );
+
+const SAFE_AREA_OVERRIDE_CSS =
+  ':root { --safe-top: 62px; --safe-right: 59px; --safe-bottom: 34px; --safe-left: 59px; }';
+
+const WCAG_TEXT_SPACING_CSS = `
+  * {
+    line-height: 1.5 !important;
+    letter-spacing: 0.12em !important;
+    word-spacing: 0.16em !important;
+  }
+  p {
+    margin-bottom: 2em !important;
+  }
+`;
+
+const EXPECTED_NAV_LABELS = ['About', 'Experience', 'Education', 'Stack', 'Certs', 'Projects', 'Contact'];
+const EXPECTED_NAV_HREFS = ['#about', '#experience', '#education', '#stack', '#certifications', '#projects', '#contact'];
+
+const VIEWPORTS: Array<[number, number]> = [
+  [320, 568],
+  [359, 800],
+  [360, 800],
+  [382, 368],
+  [382, 802],
+  [393, 852],
+  [402, 874],
+  [430, 932],
+  [639, 800],
+  [640, 599],
+  [640, 600],
+  [744, 1133],
+  [820, 1180],
+  [852, 393],
+  [932, 430],
+  [951, 902],
+  [1024, 768],
+  [1024, 1366],
+  [1180, 820],
+  [1280, 599],
+  [1280, 720],
+  [1440, 900],
+  [1920, 1080],
+];
+
+const COMPACT_STICKY_VIEWPORTS: Array<[number, number]> = [
+  [402, 874],
+  [393, 852],
+  [430, 932],
+  [382, 802],
+  [360, 800],
+  [639, 800],
+];
+
+const FULL_STICKY_VIEWPORTS: Array<[number, number]> = [
+  [640, 600],
+  [820, 1180],
+  [1024, 768],
+  [1180, 820],
+  [1280, 720],
+  [1440, 900],
+  [1920, 1080],
+];
+
+const STATIC_VIEWPORTS: Array<[number, number]> = [
+  [359, 800],
+  [320, 568],
+  [852, 393],
+  [932, 430],
+  [640, 599],
+  [1280, 599],
+];
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -35,6 +106,15 @@ function findSystemBrowser(): string | undefined {
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
   ];
   return candidates.find((p) => fs.existsSync(p));
+}
+
+async function waitForPageReady(page: Page, width: number, height: number, injectSafeArea = false) {
+  await page.setViewportSize({ width, height });
+  await page.goto(baseUrl, { waitUntil: 'networkidle' });
+  if (injectSafeArea) {
+    await page.addStyleTag({ content: SAFE_AREA_OVERRIDE_CSS });
+  }
+  await page.evaluate(() => document.fonts.ready);
 }
 
 beforeAll(async () => {
@@ -76,7 +156,7 @@ afterAll(async () => {
 });
 
 describe('Browser verification against built dist/', () => {
-  test('zero horizontal overflow across viewports and calibrated wordmark width', async () => {
+  test('zero horizontal overflow, no clipped content across all viewports, and calibrated wordmark width', async () => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
@@ -90,17 +170,40 @@ describe('Browser verification against built dist/', () => {
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
-    const widths = [320, 375, 768, 1280, 1440, 1920];
-    for (const width of widths) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(baseUrl, { waitUntil: 'networkidle' });
-      await page.evaluate(() => document.fonts.ready);
+    for (const [width, height] of VIEWPORTS) {
+      await waitForPageReady(page, width, height);
 
-      const overflow = await page.evaluate(() => ({
-        scrollWidth: document.documentElement.scrollWidth,
-        innerWidth: window.innerWidth,
-      }));
-      expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth);
+      const layout = await page.evaluate(() => {
+        const vw = window.innerWidth;
+        const overflow = document.documentElement.scrollWidth > vw;
+        const clipped: string[] = [];
+        for (const el of document.querySelectorAll<HTMLElement>('h1, h2, h3, h4, p, li, a, button, summary, dt, dd')) {
+          if (el.closest('.sr-only') || el.classList.contains('sr-only') || el.classList.contains('skip-link')) {
+            continue;
+          }
+          const style = getComputedStyle(el);
+          if (style.display === 'none' || el.offsetParent === null) continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (rect.left < -0.5 || rect.right > vw + 0.5) {
+            clipped.push(`${el.tagName}:${el.textContent?.trim().slice(0, 30)} (${rect.left.toFixed(1)}..${rect.right.toFixed(1)} vs ${vw})`);
+          }
+          if ((style.overflowX === 'hidden' || style.overflowX === 'clip') && el.scrollWidth > el.clientWidth + 1) {
+            clipped.push(`clipped-x:${el.tagName}:${el.textContent?.trim().slice(0, 30)}`);
+          }
+        }
+        return { overflow, clipped };
+      });
+      expect(layout.overflow).toBe(false);
+      expect(layout.clipped).toEqual([]);
+
+      if (width >= 640) {
+        const wordmarkLineCount = await page.evaluate(() => {
+          const lines = Array.from(document.querySelectorAll('h1.hero-wordmark .wm-line'));
+          return new Set(lines.map((el) => Math.round(el.getBoundingClientRect().top))).size;
+        });
+        expect(wordmarkLineCount).toBe(1);
+      }
 
       if (width >= 1280) {
         const ratio = await page.evaluate(() => {
@@ -128,9 +231,462 @@ describe('Browser verification against built dist/', () => {
     expect(thirdPartyRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
     await context.close();
+  }, 30000);
+
+  test('navigation mode matrix (compact sticky, full sticky, static)', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+
+    const getModeState = () =>
+      page.evaluate(() => {
+        const header = document.querySelector('.site-header')!;
+        const navFull = document.querySelector('.nav-full')!;
+        const navCompact = document.querySelector('.nav-compact')!;
+        const sectionName = document.querySelector('.section-name')!;
+        const backToTop = document.querySelector('.back-to-top')!;
+        return {
+          headerPos: getComputedStyle(header).position,
+          navFullDisplay: getComputedStyle(navFull).display,
+          navCompactDisplay: getComputedStyle(navCompact).display,
+          sectionNameDisplay: getComputedStyle(sectionName).display,
+          backToTopDisplay: getComputedStyle(backToTop).display,
+        };
+      });
+
+    for (const [w, h] of COMPACT_STICKY_VIEWPORTS) {
+      await page.setViewportSize({ width: w, height: h });
+      const state = await getModeState();
+      expect(state.headerPos).toBe('sticky');
+      expect(state.navFullDisplay).toBe('none');
+      expect(state.navCompactDisplay).toBe('flex');
+      expect(state.sectionNameDisplay).not.toBe('none');
+      expect(state.backToTopDisplay).toBe('none');
+    }
+
+    for (const [w, h] of FULL_STICKY_VIEWPORTS) {
+      await page.setViewportSize({ width: w, height: h });
+      const state = await getModeState();
+      expect(state.headerPos).toBe('sticky');
+      expect(state.navFullDisplay).toBe('flex');
+      expect(state.navCompactDisplay).toBe('none');
+      expect(state.sectionNameDisplay).not.toBe('none');
+      expect(state.backToTopDisplay).toBe('none');
+    }
+
+    for (const [w, h] of STATIC_VIEWPORTS) {
+      await page.setViewportSize({ width: w, height: h });
+      const state = await getModeState();
+      expect(state.headerPos).toBe('static');
+      expect(state.navFullDisplay).toBe('flex');
+      expect(state.navCompactDisplay).toBe('none');
+      expect(state.sectionNameDisplay).toBe('none');
+      expect(state.backToTopDisplay).not.toBe('none');
+    }
+
+    await context.close();
   });
 
-  test('axe-core WCAG 2.2 AA audit, skip link, and interactive controls', async () => {
+  test('compact sticky mode behavior, safe-area height, keyboard/tap dismiss, scroll opacity, and first-viewport hero', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    // First-viewport hero check at 393x852 and 402x874 with safe-area override
+    for (const [w, h] of [
+      [393, 852],
+      [402, 874],
+    ] as const) {
+      await waitForPageReady(page, w, h, true);
+      const metrics = await page.evaluate(() => {
+        const header = document.querySelector<HTMLElement>('.site-header')!;
+        const headerRect = header.getBoundingClientRect();
+        const h1 = document.querySelector<HTMLElement>('h1.hero-wordmark')!;
+        const h1Rect = h1.getBoundingClientRect();
+        const brand = document.querySelector<HTMLElement>('.nav-brand')!;
+        const summary = document.querySelector<HTMLElement>('.nav-menu summary')!;
+        const panelLinks = Array.from(document.querySelectorAll<HTMLElement>('.nav-links a'));
+        return {
+          headerClientHeight: header.clientHeight,
+          headerHeight: headerRect.height,
+          brandVisible: brand.offsetParent !== null,
+          summaryVisible: summary.offsetParent !== null,
+          anyPanelLinkVisible: panelLinks.some((a) => a.offsetParent !== null),
+          h1Top: h1Rect.top,
+          h1Bottom: h1Rect.bottom,
+          headerBottom: headerRect.bottom,
+          vh: window.innerHeight,
+        };
+      });
+
+      expect(metrics.brandVisible).toBe(true);
+      expect(metrics.summaryVisible).toBe(true);
+      expect(metrics.anyPanelLinkVisible).toBe(false);
+      expect(metrics.headerClientHeight).toBe(44 + 62);
+      expect(metrics.headerHeight).toBeLessThanOrEqual(44 + 62 + 1);
+      if (w === 402) {
+        expect(metrics.headerHeight / metrics.vh).toBeLessThanOrEqual(0.135);
+      }
+      expect(metrics.h1Top).toBeGreaterThanOrEqual(metrics.headerBottom);
+      expect(metrics.h1Bottom).toBeLessThanOrEqual(metrics.vh);
+    }
+
+    // Open via click, Enter, and Space; check panel opacity, link order, height >= 44px, and close triggers
+    const summary = page.locator('.nav-menu summary');
+    const details = page.locator('.nav-menu');
+
+    await summary.click();
+    expect(await details.getAttribute('open')).not.toBeNull();
+
+    const panelMetrics = await page.evaluate(() => {
+      const panel = document.querySelector<HTMLElement>('.nav-links')!;
+      const panelStyle = getComputedStyle(panel);
+      const panelRect = panel.getBoundingClientRect();
+      const links = Array.from(panel.querySelectorAll<HTMLAnchorElement>('a'));
+      return {
+        bg: panelStyle.backgroundColor,
+        backdrop: panelStyle.backdropFilter,
+        panelLeft: panelRect.left,
+        panelRight: panelRect.right,
+        panelBottom: panelRect.bottom,
+        vw: window.innerWidth,
+        vh: window.innerHeight,
+        labels: links.map((a) => a.textContent?.trim()),
+        heights: links.map((a) => a.getBoundingClientRect().height),
+      };
+    });
+    expect(panelMetrics.bg).toBe('rgb(255, 255, 255)');
+    expect(panelMetrics.backdrop).toBe('none');
+    expect(panelMetrics.panelLeft).toBeGreaterThanOrEqual(0);
+    expect(panelMetrics.panelRight).toBeLessThanOrEqual(panelMetrics.vw);
+    expect(panelMetrics.panelBottom).toBeLessThanOrEqual(panelMetrics.vh);
+    expect(panelMetrics.labels).toEqual(EXPECTED_NAV_LABELS);
+    for (const h of panelMetrics.heights) {
+      expect(h).toBeGreaterThanOrEqual(44);
+    }
+
+    // Escape closes and returns focus to summary
+    await page.keyboard.press('Escape');
+    expect(await details.getAttribute('open')).toBeNull();
+    expect(await page.evaluate(() => document.activeElement?.tagName.toLowerCase())).toBe('summary');
+
+    // Space opens, tap outside closes
+    await page.keyboard.press('Space');
+    expect(await details.getAttribute('open')).not.toBeNull();
+    await page.mouse.click(200, 500);
+    expect(await details.getAttribute('open')).toBeNull();
+
+    // Enter opens, focus leaving nav closes
+    await summary.focus();
+    await page.keyboard.press('Enter');
+    expect(await details.getAttribute('open')).not.toBeNull();
+    await page.locator('#hero a').first().focus();
+    expect(await details.getAttribute('open')).toBeNull();
+
+    // Link activation closes panel and target section heading clears sticky header
+    await summary.click();
+    expect(await details.getAttribute('open')).not.toBeNull();
+    await page.locator('.nav-links a[href="#experience"]').click();
+    await page.waitForTimeout(300);
+    expect(await details.getAttribute('open')).toBeNull();
+    const expCheck = await page.evaluate(() => ({
+      headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
+      headingTop: document.getElementById('experience-heading')!.getBoundingClientRect().top,
+    }));
+    expect(expCheck.headingTop).toBeGreaterThanOrEqual(expCheck.headerBottom);
+
+    // Scroll 1500px: sticky header remains at top, opaque, no backdrop-filter
+    await page.evaluate(() => window.scrollTo({ top: 1500, behavior: 'instant' }));
+    const scrolledHeader = await page.evaluate(() => {
+      const header = document.querySelector('.site-header')!;
+      const style = getComputedStyle(header);
+      return {
+        top: header.getBoundingClientRect().top,
+        bg: style.backgroundColor,
+        backdrop: style.backdropFilter,
+      };
+    });
+    expect(scrolledHeader.top).toBe(0);
+    expect(scrolledHeader.bg).toBe('rgb(255, 255, 255)');
+    expect(scrolledHeader.backdrop).toBe('none');
+
+    await context.close();
+  }, 20000);
+
+  test('full sticky mode: scroll behavior, 25% height cap, hidden back-to-top, focus clearance, anchor targets, and 1280x720 hero', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    // 1280x720 whole h1 in first viewport
+    await waitForPageReady(page, 1280, 720, true);
+    const hero1280 = await page.evaluate(() => ({
+      headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
+      h1Top: document.querySelector('h1.hero-wordmark')!.getBoundingClientRect().top,
+      h1Bottom: document.querySelector('h1.hero-wordmark')!.getBoundingClientRect().bottom,
+      vh: window.innerHeight,
+    }));
+    expect(hero1280.h1Top).toBeGreaterThanOrEqual(hero1280.headerBottom);
+    expect(hero1280.h1Bottom).toBeLessThanOrEqual(hero1280.vh);
+
+    // Scroll 1500px check
+    await page.evaluate(() => window.scrollTo({ top: 1500, behavior: 'instant' }));
+    const stickyCheck = await page.evaluate(() => {
+      const header = document.querySelector('.site-header')!;
+      const style = getComputedStyle(header);
+      const rect = header.getBoundingClientRect();
+      return {
+        top: rect.top,
+        height: rect.height,
+        vh: window.innerHeight,
+        bg: style.backgroundColor,
+        backdrop: style.backdropFilter,
+      };
+    });
+    expect(stickyCheck.top).toBe(0);
+    expect(stickyCheck.bg).toBe('rgb(255, 255, 255)');
+    expect(stickyCheck.backdrop).toBe('none');
+    expect(stickyCheck.height).toBeLessThanOrEqual(stickyCheck.vh * 0.25);
+
+    // .back-to-top not displayed and not in accessibility tree
+    expect(await page.getByRole('link', { name: 'Back to top' }).count()).toBe(0);
+
+    // Click each nav link and check first heading clears header bottom
+    for (const href of EXPECTED_NAV_HREFS) {
+      await page.locator(`.nav-full a[href="${href}"]`).click();
+      await page.waitForTimeout(250);
+      const sectionId = href.slice(1);
+      const clear = await page.evaluate((id) => {
+        const headerBottom = document.querySelector('.site-header')!.getBoundingClientRect().bottom;
+        const section = document.getElementById(id)!;
+        const heading = section.querySelector('h2, h3')!;
+        return {
+          headerBottom,
+          headingTop: heading.getBoundingClientRect().top,
+        };
+      }, sectionId);
+      expect(clear.headingTop).toBeGreaterThanOrEqual(clear.headerBottom);
+    }
+
+    // Tab through every focusable element: elements inside main/footer must clear sticky header minus 5px focus ring
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    const focusCount = await page.evaluate(() => {
+      return document.querySelectorAll('a[href], button:not([hidden]), summary').length;
+    });
+    for (let i = 0; i < focusCount + 2; i += 1) {
+      await page.keyboard.press('Tab');
+      const focused = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) return null;
+        if (el.closest('.site-header') || el.classList.contains('skip-link')) return { skip: true };
+        const headerBottom = document.querySelector('.site-header')!.getBoundingClientRect().bottom;
+        const rect = el.getBoundingClientRect();
+        return {
+          skip: false,
+          tag: el.tagName,
+          text: el.textContent?.trim().slice(0, 30),
+          ringTop: rect.top - 5,
+          headerBottom,
+        };
+      });
+      if (focused && !focused.skip && focused.headerBottom !== undefined) {
+        expect(focused.ringTop).toBeGreaterThanOrEqual(focused.headerBottom - 0.5);
+      }
+    }
+
+    await context.close();
+  }, 25000);
+
+  test('static mode: Back to top visibility, coarse-pointer 44x44 target, and return to top with safe-top clearance', async () => {
+    const context = await browser.newContext({
+      viewport: { width: 852, height: 393 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await waitForPageReady(page, 852, 393, true);
+
+    await page.evaluate(() => {
+      window.scrollTo({ top: document.documentElement.scrollHeight / 2, behavior: 'instant' });
+    });
+
+    const visibleBackLink = page.locator('#stack .back-to-top a');
+    expect(await visibleBackLink.isVisible()).toBe(true);
+    const box = await visibleBackLink.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+
+    await visibleBackLink.click();
+    await page.waitForFunction(() => window.scrollY === 0);
+
+    const topCheck = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll<HTMLElement>('.nav-full a'));
+      return {
+        scrollY: window.scrollY,
+        allVisible: links.every((a) => a.offsetParent !== null),
+        firstLinkTop: links[0]?.getBoundingClientRect().top ?? 0,
+      };
+    });
+    expect(topCheck.scrollY).toBeLessThanOrEqual(2);
+    expect(topCheck.allVisible).toBe(true);
+    expect(topCheck.firstLinkTop).toBeGreaterThanOrEqual(62);
+
+    await context.close();
+  }, 15000);
+
+  test('safe-area insets at 852x393 and 393x852, full-bleed Contact background, and bottom clearance', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    for (const [w, h] of [
+      [852, 393],
+      [393, 852],
+    ] as const) {
+      await waitForPageReady(page, w, h, true);
+
+      const safeCheck = await page.evaluate(() => {
+        const vw = window.innerWidth;
+        const violations: string[] = [];
+        for (const el of document.querySelectorAll<HTMLElement>(
+          '.site-nav a, .site-nav summary, #hero h1, #hero p, #hero a, #hero button, #about p, #about dt, #about dd, #experience h3, #experience p, #experience li, #education h3, #education p, #certifications h3, #projects h3, #projects p, #projects a, #contact h2, #contact a, #contact button',
+        )) {
+          if (el.offsetParent === null || el.closest('.sr-only')) continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (rect.left < 58.5 || rect.right > vw - 58.5) {
+            violations.push(`${el.tagName}:${el.textContent?.trim().slice(0, 24)} (${rect.left.toFixed(1)}..${rect.right.toFixed(1)} in ${vw})`);
+          }
+        }
+        return violations;
+      });
+      expect(safeCheck).toEqual([]);
+
+      await page.evaluate(() => {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+      });
+
+      const contactMetrics = await page.evaluate(() => {
+        const footer = document.getElementById('contact')!;
+        const footerRect = footer.getBoundingClientRect();
+        const bottomRow = footer.querySelector<HTMLElement>('.contact-bottom')!;
+        const bottomRect = bottomRow.getBoundingClientRect();
+        const linkBottoms = Array.from(bottomRow.querySelectorAll<HTMLElement>('a, button')).map(
+          (el) => el.getBoundingClientRect().bottom,
+        );
+        return {
+          footerLeft: footerRect.left,
+          footerRight: footerRect.right,
+          footerBg: getComputedStyle(footer).backgroundColor,
+          bodyRight: document.body.getBoundingClientRect().right,
+          vh: window.innerHeight,
+          bottomRowBottom: bottomRect.bottom,
+          maxLinkBottom: Math.max(...linkBottoms),
+        };
+      });
+
+      expect(contactMetrics.footerLeft).toBe(0);
+      expect(contactMetrics.footerRight).toBe(contactMetrics.bodyRight);
+      expect(contactMetrics.footerBg).toBe('rgb(0, 0, 0)');
+      expect(contactMetrics.bottomRowBottom).toBeLessThanOrEqual(contactMetrics.vh - 34);
+      expect(contactMetrics.maxLinkBottom).toBeLessThanOrEqual(contactMetrics.vh - 34);
+    }
+
+    await context.close();
+  }, 15000);
+
+  test('coarse pointer touch targets >= 44x44 CSS px', async () => {
+    const context = await browser.newContext({
+      viewport: { width: 393, height: 852 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await context.newPage();
+    await waitForPageReady(page, 393, 852);
+
+    // Compact mode: brand, Menu summary, open panel links, Hero links & Copy button
+    await page.locator('.nav-menu summary').click();
+    const compactTargets = await page.evaluate(() => {
+      const items = [
+        ...document.querySelectorAll<HTMLElement>('.nav-compact a, .nav-compact summary, #hero a, #hero button:not([hidden])'),
+      ];
+      return items.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { label: el.textContent?.trim(), w: r.width, h: r.height };
+      });
+    });
+    for (const t of compactTargets) {
+      expect(t.w).toBeGreaterThanOrEqual(44);
+      expect(t.h).toBeGreaterThanOrEqual(44);
+    }
+
+    // Full mode with coarse pointer (tablet touch e.g. 820x1180)
+    await page.setViewportSize({ width: 820, height: 1180 });
+    const fullTargets = await page.evaluate(() => {
+      const items = [
+        ...document.querySelectorAll<HTMLElement>(
+          '.nav-full a, #contact .contact-bottom a, #contact .contact-bottom button:not([hidden])',
+        ),
+      ];
+      return items.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { label: el.textContent?.trim(), w: r.width, h: r.height };
+      });
+    });
+    for (const t of fullTargets) {
+      expect(t.w).toBeGreaterThanOrEqual(44);
+      expect(t.h).toBeGreaterThanOrEqual(44);
+    }
+
+    await context.close();
+  });
+
+  test('WCAG 1.4.12 text-spacing overrides: no horizontal overflow, no overlapping nav links, and anchor clearance', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    for (const [w, h] of [
+      [320, 568],
+      [393, 852],
+      [820, 1180],
+      [1440, 900],
+    ] as const) {
+      await waitForPageReady(page, w, h, w >= 640);
+      await page.addStyleTag({ content: WCAG_TEXT_SPACING_CSS });
+
+      const spacingCheck = await page.evaluate(() => {
+        const overflow = document.documentElement.scrollWidth > window.innerWidth;
+        const navLinks = Array.from(document.querySelectorAll<HTMLElement>('.nav-full a')).filter(
+          (el) => el.offsetParent !== null,
+        );
+        const overlaps: string[] = [];
+        for (let i = 0; i < navLinks.length; i += 1) {
+          const a = navLinks[i]!.getBoundingClientRect();
+          for (let j = i + 1; j < navLinks.length; j += 1) {
+            const b = navLinks[j]!.getBoundingClientRect();
+            if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) {
+              overlaps.push(`${navLinks[i]!.textContent} vs ${navLinks[j]!.textContent}`);
+            }
+          }
+        }
+        return { overflow, overlaps };
+      });
+      expect(spacingCheck.overflow).toBe(false);
+      expect(spacingCheck.overlaps).toEqual([]);
+
+      if (w >= 640) {
+        await page.locator('.nav-full a[href="#education"]').click();
+        await page.waitForTimeout(250);
+        const anchorClear = await page.evaluate(() => ({
+          headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
+          headingTop: document.getElementById('education-heading')!.getBoundingClientRect().top,
+        }));
+        expect(anchorClear.headingTop).toBeGreaterThanOrEqual(anchorClear.headerBottom);
+      }
+    }
+
+    await context.close();
+  });
+
+  test('axe-core WCAG 2.2 AA audit (393 closed/open, 820, 1440), skip link, and interactive controls', async () => {
     const context = await browser.newContext({
       permissions: ['clipboard-read', 'clipboard-write'],
     });
@@ -140,11 +696,48 @@ describe('Browser verification against built dist/', () => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
 
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
-    await page.evaluate(() => document.fonts.ready);
+    // 393x852 closed & open
+    await waitForPageReady(page, 393, 852);
+    await page.addScriptTag({ content: axeSource });
+    const axe393Closed = await page.evaluate(async () => {
+      // @ts-expect-error injected via addScriptTag
+      return await window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+      });
+    });
+    expect(axe393Closed.violations).toEqual([]);
 
-    // First Tab stop must be the skip link
+    await page.locator('.nav-menu summary').click();
+    const axe393Open = await page.evaluate(async () => {
+      // @ts-expect-error injected via addScriptTag
+      return await window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+      });
+    });
+    expect(axe393Open.violations).toEqual([]);
+
+    // 820x1180
+    await waitForPageReady(page, 820, 1180);
+    await page.addScriptTag({ content: axeSource });
+    const axe820 = await page.evaluate(async () => {
+      // @ts-expect-error injected via addScriptTag
+      return await window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+      });
+    });
+    expect(axe820.violations).toEqual([]);
+
+    // 1440x900: axe-core at rest, then verify first Tab stop is skip link, Copy email, Portrait, Architecture SVGs
+    await waitForPageReady(page, 1440, 900);
+    await page.addScriptTag({ content: axeSource });
+    const axe1440 = await page.evaluate(async () => {
+      // @ts-expect-error injected via addScriptTag
+      return await window.axe.run(document, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] },
+      });
+    });
+    expect(axe1440.violations).toEqual([]);
+
     await page.keyboard.press('Tab');
     const firstFocused = await page.evaluate(() => ({
       className: document.activeElement?.className ?? '',
@@ -153,27 +746,7 @@ describe('Browser verification against built dist/', () => {
     expect(firstFocused.className).toContain('skip-link');
     expect(firstFocused.href).toBe('#main-content');
 
-    // Run axe-core WCAG 2.0/2.1/2.2 AA
-    await page.addScriptTag({ content: axeSource });
-    const results = await page.evaluate(async () => {
-      // @ts-expect-error injected via addScriptTag
-      return await window.axe.run(document, {
-        runOnly: {
-          type: 'tag',
-          values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'],
-        },
-      });
-    });
-
-    expect(results.violations).toEqual([]);
-
-    // Exercise primary section navigation anchor links (8 items inside always-on pill)
-    const navLinks = page.locator('nav[aria-label="Primary"] [data-nav-section]');
-    expect(await navLinks.count()).toBe(8);
-    await page.locator('nav[aria-label="Primary"] [data-nav-section="about"]').click();
-    expect(page.url()).toContain('#about');
-
-    // Copy email buttons become visible under JS and announce on click
+    // Copy email buttons
     const copyBtns = page.locator('[data-copy-email]');
     expect(await copyBtns.count()).toBe(2);
     expect(await copyBtns.first().isVisible()).toBe(true);
@@ -187,7 +760,7 @@ describe('Browser verification against built dist/', () => {
     const statusText = await page.locator('#copy-status').textContent();
     expect(statusText?.length).toBeGreaterThan(0);
 
-    // Portrait image decodes cleanly inside the About squircle
+    // Portrait image decodes cleanly
     const portrait = page.locator('#about img');
     await portrait.scrollIntoViewIfNeeded();
     const portraitMetrics = await portrait.evaluate(async (img: HTMLImageElement) => {
@@ -200,7 +773,7 @@ describe('Browser verification against built dist/', () => {
     expect(portraitMetrics.width).toBeGreaterThanOrEqual(200);
     expect(portraitMetrics.height).toBeGreaterThanOrEqual(200);
 
-    // Every architecture SVG keeps all text labels non-overlapping and inside bounds
+    // Architecture SVG labels non-overlapping and inside bounds
     const diagramOverlaps = await page.evaluate(() => {
       const issues: string[] = [];
       for (const svg of document.querySelectorAll('svg[role="img"]')) {
@@ -228,244 +801,43 @@ describe('Browser verification against built dist/', () => {
       return issues;
     });
     expect(diagramOverlaps).toEqual([]);
-
     expect(consoleErrors).toEqual([]);
     await context.close();
-  }, 15000);
+  }, 20000);
 
-  test('floating navbar desktop always-on reveal, bidirectional scroll-spy, sliding indicator, and responsive modes', async () => {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const page = await context.newPage();
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
-
-    const nav = page.locator('#floating-nav');
-    const indicator = page.locator('.floating-nav-indicator');
-
-    // Desktop initial hero state: floating nav always visible and clearing Hero eyebrow
-    expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-    expect(await nav.evaluate((el) => (el as HTMLElement).inert)).toBe(false);
-    expect(await page.locator('[data-nav-section="hero"]').getAttribute('aria-current')).toBe('true');
-    const desktopHeroMetrics = await page.evaluate(() => ({
-      navBottom: document.getElementById('floating-nav')?.getBoundingClientRect().bottom ?? 999,
-      eyebrowTop: document.querySelector('#hero span')?.getBoundingClientRect().top ?? 0,
-    }));
-    expect(desktopHeroMetrics.eyebrowTop).toBeGreaterThan(desktopHeroMetrics.navBottom);
-
-    // Scroll down to #education then up into #experience: active indicator updates bidirectionally
-    await page.evaluate(() => {
-      document.getElementById('education')?.scrollIntoView({ behavior: 'instant', block: 'start' });
-    });
-    await page.waitForTimeout(200);
-    expect(await page.locator('[data-nav-section="education"]').getAttribute('aria-current')).toBe('true');
-
-    await page.evaluate(() => {
-      document.getElementById('experience')?.scrollIntoView({ behavior: 'instant', block: 'start' });
-    });
-    await page.waitForTimeout(250);
-    expect(await page.locator('[data-nav-section="experience"]').getAttribute('aria-current')).toBe('true');
-
-    const expIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
-    expect(Number.isFinite(expIndX)).toBe(true);
-
-    // Pointer hover glides sliding indicator to hovered item, then returns on leave
-    const projectsLink = page.locator('[data-nav-section="projects"]');
-    await projectsLink.hover();
-    await page.waitForTimeout(150);
-    const projIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
-    expect(projIndX).toBeGreaterThan(expIndX);
-
-    await page.mouse.move(10, 10);
-    await page.waitForTimeout(150);
-    const restoredIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
-    expect(Math.abs(restoredIndX - expIndX)).toBeLessThan(2);
-
-    // Tablet (768px) & Foldable (640px) top floating pill fits cleanly with zero horizontal overflow
-    for (const width of [768, 640]) {
-      await page.setViewportSize({ width, height: 860 });
-      await page.waitForTimeout(150);
-      const metrics = await page.evaluate(() => {
-        const navEl = document.getElementById('floating-nav');
-        const navRect = navEl?.getBoundingClientRect();
-        const links = Array.from(document.querySelectorAll('.floating-nav-link'));
-        const wrapped = links.some((el) => el.getBoundingClientRect().height > 56);
-        return {
-          docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          navWidth: navRect?.width ?? 0,
-          navTop: navRect?.top ?? 999,
-          viewportWidth: window.innerWidth,
-          wrapped,
-        };
-      });
-      expect(metrics.docOverflow).toBe(false);
-      expect(metrics.wrapped).toBe(false);
-      expect(metrics.navWidth).toBeLessThanOrEqual(metrics.viewportWidth - 16);
-      expect(metrics.navTop).toBeLessThan(40);
-    }
-
-    // Mobile (375px) top pill & downward popover open below trigger, then navigation closes it
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.waitForTimeout(150);
-
-    const trigger = page.locator('#floating-nav-trigger');
-    await trigger.click();
-    await page.waitForTimeout(150);
-    expect(await trigger.getAttribute('aria-expanded')).toBe('true');
-
-    const mobilePos = await page.evaluate(() => {
-      const navEl = document.getElementById('floating-nav');
-      const panelEl = document.getElementById('floating-nav-panel');
-      return {
-        navTop: navEl?.getBoundingClientRect().top ?? 999,
-        navBottom: navEl?.getBoundingClientRect().bottom ?? 0,
-        panelTop: panelEl?.getBoundingClientRect().top ?? 0,
-      };
-    });
-    expect(mobilePos.navTop).toBeLessThan(40);
-    expect(mobilePos.panelTop).toBeGreaterThanOrEqual(mobilePos.navBottom);
-
-    await projectsLink.click();
-    await page.waitForTimeout(250);
-    expect(await trigger.getAttribute('aria-expanded')).toBe('false');
-
-    // Simulated notched phone portrait (393x852, safe-area-inset-top: 59px) & landscape (852x393, left/right: 59px)
-    const cdp = await context.newCDPSession(page);
-    await page.setViewportSize({ width: 393, height: 852 });
-    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
-      insets: { top: 59, bottom: 34, left: 0, right: 0 },
-    });
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(150);
-
-    const notchPortrait = await page.evaluate(() => {
-      const navEl = document.getElementById('floating-nav');
-      const heroEyebrow = document.querySelector('#hero span');
-      const navRect = navEl?.getBoundingClientRect();
-      return {
-        navTop: navRect?.top ?? 0,
-        navBottom: navRect?.bottom ?? 999,
-        eyebrowTop: heroEyebrow?.getBoundingClientRect().top ?? 0,
-      };
-    });
-    expect(notchPortrait.navTop).toBeGreaterThanOrEqual(59);
-    expect(notchPortrait.eyebrowTop).toBeGreaterThan(notchPortrait.navBottom);
-
-    await page.setViewportSize({ width: 852, height: 393 });
-    await cdp.send('Emulation.setSafeAreaInsetsOverride', {
-      insets: { top: 0, bottom: 21, left: 59, right: 59 },
-    });
-    await page.waitForTimeout(150);
-    const notchLandscape = await page.evaluate(() => {
-      const navRect = document.getElementById('floating-nav')?.getBoundingClientRect();
-      const eyebrowTop = document.querySelector('#hero span')?.getBoundingClientRect().top ?? 0;
-      return {
-        navLeft: navRect?.left ?? 0,
-        navRight: navRect?.right ?? 999,
-        navBottom: navRect?.bottom ?? 999,
-        eyebrowTop,
-        docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      };
-    });
-    expect(notchLandscape.navLeft).toBeGreaterThanOrEqual(59);
-    expect(notchLandscape.navRight).toBeLessThanOrEqual(852 - 59);
-    expect(notchLandscape.eyebrowTop).toBeGreaterThan(notchLandscape.navBottom);
-    expect(notchLandscape.docOverflow).toBe(false);
-
-    await context.close();
-  }, 15000);
-
-  test('webkit: desktop always-on navbar, sliding pill, tablet/foldable fit, and mobile touch popover', async () => {
+  test('webkit: full sticky desktop and compact sticky mobile touch menu', async () => {
     expect(fs.existsSync(webkit.executablePath())).toBe(true);
     const wkBrowser = await webkit.launch({ headless: true });
 
     try {
-      // Desktop 1440x900
       const dCtx = await wkBrowser.newContext({ viewport: { width: 1440, height: 900 } });
       const dPage = await dCtx.newPage();
-      await dPage.goto(baseUrl, { waitUntil: 'networkidle' });
+      await waitForPageReady(dPage, 1440, 900);
 
-      const nav = dPage.locator('#floating-nav');
-      const indicator = dPage.locator('.floating-nav-indicator');
-      expect(await nav.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-      expect(await dPage.locator('[data-nav-section="hero"]').getAttribute('aria-current')).toBe('true');
-
-      await dPage.evaluate(() => {
-        document.getElementById('experience')?.scrollIntoView({ behavior: 'instant', block: 'start' });
-      });
-      await dPage.waitForTimeout(350);
-
-      expect(await dPage.locator('[data-nav-section="experience"]').getAttribute('aria-current')).toBe('true');
-
-      const expIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
-      await dPage.locator('[data-nav-section="projects"]').hover();
-      await dPage.waitForTimeout(200);
-      const projIndX = await indicator.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--ind-x')));
-      expect(projIndX).toBeGreaterThan(expIndX);
-
-      // Tablet (768px) & Foldable (640px) top floating pill fit cleanly
-      for (const width of [768, 640]) {
-        await dPage.setViewportSize({ width, height: 860 });
-        await dPage.waitForTimeout(200);
-        const wkMetrics = await dPage.evaluate(() => {
-          const navRect = document.getElementById('floating-nav')?.getBoundingClientRect();
-          const wrapped = Array.from(document.querySelectorAll('.floating-nav-link')).some(
-            (el) => el.getBoundingClientRect().height > 56,
-          );
-          return {
-            docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-            navTop: navRect?.top ?? 999,
-            navWidth: navRect?.width ?? 0,
-            vw: window.innerWidth,
-            wrapped,
-          };
-        });
-        expect(wkMetrics.docOverflow).toBe(false);
-        expect(wkMetrics.wrapped).toBe(false);
-        expect(wkMetrics.navTop).toBeLessThan(40);
-        expect(wkMetrics.navWidth).toBeLessThanOrEqual(wkMetrics.vw - 16);
-      }
+      await dPage.evaluate(() => window.scrollTo({ top: 1500, behavior: 'instant' }));
+      expect(await dPage.locator('.site-header').evaluate((el) => el.getBoundingClientRect().top)).toBe(0);
+      await dPage.locator('.nav-full a[href="#projects"]').click();
+      await dPage.waitForTimeout(300);
+      expect(await dPage.evaluate(() => window.scrollY)).toBeGreaterThan(400);
       await dCtx.close();
 
-      // Mobile touch WebKit (390x844, hasTouch: true)
       const mCtx = await wkBrowser.newContext({
-        viewport: { width: 390, height: 844 },
+        viewport: { width: 393, height: 852 },
         hasTouch: true,
         isMobile: true,
       });
       const mPage = await mCtx.newPage();
-      await mPage.goto(baseUrl, { waitUntil: 'networkidle' });
-      await mPage.waitForTimeout(200);
+      await waitForPageReady(mPage, 393, 852, true);
 
-      const heroCheck = await mPage.evaluate(() => {
-        const navRect = document.getElementById('floating-nav')?.getBoundingClientRect();
-        const eyebrowRect = document.querySelector('#hero span')?.getBoundingClientRect();
-        return {
-          docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          navTop: navRect?.top ?? 999,
-          navBottom: navRect?.bottom ?? 999,
-          eyebrowTop: eyebrowRect?.top ?? 0,
-        };
-      });
-      expect(heroCheck.docOverflow).toBe(false);
-      expect(heroCheck.navTop).toBeLessThan(40);
-      expect(heroCheck.eyebrowTop).toBeGreaterThan(heroCheck.navBottom);
+      const summary = mPage.locator('.nav-menu summary');
+      const details = mPage.locator('.nav-menu');
+      await summary.tap();
+      expect(await details.getAttribute('open')).not.toBeNull();
 
-      const trigger = mPage.locator('#floating-nav-trigger');
-      await trigger.tap();
-      await mPage.waitForTimeout(250);
-      expect(await trigger.getAttribute('aria-expanded')).toBe('true');
-
-      const openRects = await mPage.evaluate(() => ({
-        navBottom: document.getElementById('floating-nav')?.getBoundingClientRect().bottom ?? 999,
-        panelTop: document.getElementById('floating-nav-panel')?.getBoundingClientRect().top ?? 0,
-      }));
-      expect(openRects.panelTop).toBeGreaterThanOrEqual(openRects.navBottom);
-
-      await mPage.locator('[data-nav-section="projects"]').tap();
-      await mPage.waitForTimeout(800);
-      expect(await trigger.getAttribute('aria-expanded')).toBe('false');
+      await mPage.locator('.nav-links a[href="#projects"]').tap();
+      await mPage.waitForTimeout(400);
+      expect(await details.getAttribute('open')).toBeNull();
       expect(await mPage.evaluate(() => window.scrollY)).toBeGreaterThan(400);
-
       await mCtx.close();
     } finally {
       await wkBrowser.close();

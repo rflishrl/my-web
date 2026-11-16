@@ -65,3 +65,5 @@ bun run test
 - [ ] Verify 200% browser text zoom without clipping or horizontal overflow.
 - [ ] Verify screen reader announcements (NVDA / VoiceOver / Narrator) for landmarks, heading hierarchy, external link cues, and the `Copy email` status live region.
 - [ ] Verify `prefers-reduced-motion: reduce` disables entrance and hover transitions while keeping all content visible.
+- [ ] Verify foldable / dual-screen layout (`@media (horizontal-viewport-segments: 2)`) in Chrome DevTools foldable/dual-screen emulation: confirm `.site-nav` stays in the left segment, the `#about` portrait and text sit on opposite sides of the hinge, and no body text, links, or buttons straddle the fold.
+- [ ] Verify on the iPhone Duo simulator in Xcode with Safari's **Device Posture** and **Viewport Segments** feature flags enabled (`Settings -> Apps -> Safari -> Advanced -> Feature Flags`), across portrait/landscape and folded/unfolded widths (`382`–`951` CSS px) and heights (`368`–`902` CSS px), confirming outer-display strip background matches `#FFFFFF` and no content straddles the hinge.
