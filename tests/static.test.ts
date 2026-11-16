@@ -502,6 +502,7 @@ describe('Static verification of dist/', () => {
     }
     expect(projectsCurrentLinks).toBe(2);
     expect(projectsHtml).toContain('href="/"');
+    expect(projectsHtml).toContain('Back to home');
     expect(projectsHtml).toContain('id="project-01"');
     expect(projectsHtml).toContain('id="project-05"');
     expect(projectsHtml).toContain('Desa Pendil');
