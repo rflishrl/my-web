@@ -3,11 +3,17 @@ import { portfolio } from '../data/portfolio';
 import RunningHeader from './RunningHeader.astro';
 import CopyEmail from './CopyEmail.svelte';
 
+const now = new Date();
 const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
   month: 'long',
   year: 'numeric',
   timeZone: 'Asia/Jakarta',
-}).format(new Date());
+}).format(now);
+const buildIsoMonth = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  timeZone: 'Asia/Jakarta',
+}).format(now);
 ---
 
 <footer
@@ -15,7 +21,7 @@ const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
   class="flex min-h-[85svh] flex-col justify-between bg-inverse py-10 text-ink-inverse sm:py-14"
 >
   <div class="container-editorial">
-    <RunningHeader right={`Updated ${buildMonthYear}`} inverse />
+    <RunningHeader right={buildMonthYear} isoMonth={buildIsoMonth} liveMonthYear inverse />
 
     <h2 class="mt-16 text-display text-ink-inverse md:mt-24">
       <span class="block">Let's start</span>

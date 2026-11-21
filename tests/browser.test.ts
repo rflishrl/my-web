@@ -1082,4 +1082,23 @@ describe('Browser verification against built dist/', () => {
     expect(await desktopPage.locator('button[aria-label^="Zoom diagram:"]').count()).toBe(0);
     await desktopContext.close();
   }, 15000);
+
+  test('live year and month/year update automatically without Updated prefix', async () => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date('2027-02-15T10:00:00+07:00') });
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+
+    const heroYear = await page.locator('[data-live-year]').textContent();
+    const monthYearTexts = await page.locator('[data-live-month-year]').allTextContents();
+    const isoMonths = await page
+      .locator('[data-live-month-year]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('datetime')));
+
+    expect(heroYear?.trim()).toBe('2027');
+    expect(monthYearTexts.map((t) => t.trim())).toEqual(['February 2027', 'February 2027']);
+    expect(isoMonths).toEqual(['2027-02', '2027-02']);
+
+    await context.close();
+  });
 });

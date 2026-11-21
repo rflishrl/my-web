@@ -4,9 +4,11 @@ import { portfolio } from '../data/portfolio';
 interface Props {
   right: string;
   inverse?: boolean;
+  liveMonthYear?: boolean;
+  isoMonth?: string;
 }
 
-const { right, inverse = false } = Astro.props;
+const { right, inverse = false, liveMonthYear = false, isoMonth } = Astro.props;
 ---
 
 <div
@@ -16,7 +18,13 @@ const { right, inverse = false } = Astro.props;
   ]}
 >
   <span>{portfolio.displayName} | Portfolio</span>
-  <span class="section-name">{right}</span>
+  {liveMonthYear ? (
+    <time class="section-name" datetime={isoMonth} data-live-month-year>
+      {right}
+    </time>
+  ) : (
+    <span class="section-name">{right}</span>
+  )}
   <span class="back-to-top">
     <a href="#top">Back to top</a>
   </span>

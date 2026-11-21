@@ -107,5 +107,34 @@ const speculationRulesHtml = JSON.stringify({
       Skip to main content
     </a>
     <slot />
+    <script>
+      const yearEls = document.querySelectorAll<HTMLElement>('[data-live-year]');
+      const monthYearEls = document.querySelectorAll<HTMLTimeElement>('[data-live-month-year]');
+      if (yearEls.length > 0 || monthYearEls.length > 0) {
+        const now = new Date();
+        const year = new Intl.DateTimeFormat('en-CA', {
+          year: 'numeric',
+          timeZone: 'Asia/Jakarta',
+        }).format(now);
+        const monthYear = new Intl.DateTimeFormat('en-GB', {
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'Asia/Jakarta',
+        }).format(now);
+        const isoMonth = new Intl.DateTimeFormat('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          timeZone: 'Asia/Jakarta',
+        }).format(now);
+
+        for (const el of yearEls) {
+          if (el.textContent !== year) el.textContent = year;
+        }
+        for (const el of monthYearEls) {
+          if (el.textContent !== monthYear) el.textContent = monthYear;
+          el.dateTime = isoMonth;
+        }
+      }
+    </script>
   </body>
 </html>
