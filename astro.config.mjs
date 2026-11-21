@@ -21,11 +21,11 @@ export default defineConfig({
         "font-src 'self'",
         "connect-src 'self'",
         "object-src 'none'",
-        "base-uri 'self'",
+        "base-uri 'none'",
         "form-action 'self'",
       ],
       scriptDirective: {
-        resources: ["'self'"],
+        resources: ["'self'", "'inline-speculation-rules'"],
       },
       styleDirective: {
         resources: ["'self'"],

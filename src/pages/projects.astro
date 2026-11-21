@@ -14,10 +14,11 @@ const projectCountLabel = String(portfolio.projects.length).padStart(2, '0');
 <BaseLayout
   title={`Projects — ${portfolio.displayName}`}
   description={`All ${portfolio.projects.length} selected software and AI engineering projects by ${portfolio.displayName}.`}
+  expectId="projects-page-heading"
 >
   <SiteNav homePrefix="/" currentPage="projects" />
-  <main id="main-content" tabindex="-1">
-    <section id="projects" aria-labelledby="projects-page-heading" class="py-12 sm:py-16 md:py-24">
+  <main id="main-content">
+    <section id="projects" class="py-12 sm:py-16 md:py-24">
       <div class="container-editorial">
         <RunningHeader right={`01 — ${projectCountLabel} All Projects`} />
 
@@ -29,20 +30,23 @@ const projectCountLabel = String(portfolio.projects.length).padStart(2, '0');
             Back to home
           </a>
 
-          <h1
-            id="projects-page-heading"
-            class="mt-6 text-[clamp(2.5rem,7vw,5.5rem)] font-bold leading-[1.02] tracking-[-0.03em] text-ink"
-          >
+          <h1 id="projects-page-heading" class="mt-6 text-page-title text-ink">
             Projects
           </h1>
           <p class="mt-4 max-w-[56ch] text-base leading-[1.6] text-ink-secondary">
-            Client, production, and independent projects across full-stack web systems and applied AI.
+            Client, production, and independent projects across full-stack web systems and applied
+            AI.
           </p>
         </div>
 
         <div class="mt-12 space-y-20 border-t border-rule pt-12 md:mt-16 md:space-y-32 md:pt-16">
           {portfolio.projects.map((project, idx) => (
-            <ProjectArticle project={project} showDivider={idx > 0} headingLevel="h2" />
+            <ProjectArticle
+              project={project}
+              showDivider={idx > 0}
+              headingLevel="h2"
+              deferRender={idx > 0}
+            />
           ))}
         </div>
       </div>

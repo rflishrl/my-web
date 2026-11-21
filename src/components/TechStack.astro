@@ -10,26 +10,26 @@ const staggerOffsets = [
 ];
 ---
 
-<section id="stack" aria-labelledby="stack-heading" class="py-16 sm:py-24 md:py-36">
+<section id="stack" class="py-16 sm:py-24 md:py-36">
   <div class="container-editorial">
     <RunningHeader right="What I build with" />
 
     <div class="mt-10 max-w-[42ch] md:mt-16">
-      <h2
-        id="stack-heading"
-        class="text-[clamp(2.25rem,5vw,4.25rem)] font-bold leading-[1.05] tracking-[-0.03em] text-ink"
-      >
+      <h2 id="stack-heading" class="text-section text-ink">
         <span class="block">What I build</span>
         <span class="block">with?</span>
       </h2>
       <p class="mt-5 text-base leading-[1.6] text-ink">{portfolio.stackIntro}</p>
     </div>
 
-    <div class="mt-12 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:mt-20 lg:grid-cols-12 lg:gap-y-14">
+    <div class="stack-groups mt-12 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:mt-20 lg:grid-cols-12 lg:gap-y-14">
       {portfolio.stackGroups.map((group, idx) => (
-        <div class={staggerOffsets[idx] ?? 'lg:col-span-5'}>
+        <div class:list={['stack-group', staggerOffsets[idx] ?? 'lg:col-span-5']}>
           <h3 class="text-sm font-normal text-ink-secondary">{group.label}</h3>
-          <ul role="list" class="mt-3 space-y-1.5 text-lg font-bold leading-snug text-ink sm:text-xl">
+          <ul
+            role="list"
+            class="mt-3 space-y-1.5 text-lg font-bold leading-snug text-ink sm:text-xl"
+          >
             {group.items.map((tool) => (
               <li>{tool}</li>
             ))}

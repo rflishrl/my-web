@@ -8,10 +8,12 @@ const featuredCountLabel = String(featuredProjects.length).padStart(2, '0');
 const totalProjects = portfolio.projects.length;
 ---
 
-<section id="projects" aria-labelledby="projects-heading" class="py-16 sm:py-24 md:py-36">
+<section id="projects" class="py-16 sm:py-24 md:py-36">
   <div class="container-editorial">
     <RunningHeader right={`01 — ${featuredCountLabel} Selected Works`} />
-    <h2 id="projects-heading" class="sr-only">Selected projects</h2>
+    <h2 id="projects-heading" class="sr-only">
+      Selected projects
+    </h2>
 
     <div class="mt-10 space-y-20 md:mt-16 md:space-y-32">
       {featuredProjects.map((project, idx) => (
@@ -26,7 +28,7 @@ const totalProjects = portfolio.projects.length;
         </p>
         <a
           href="/projects"
-          class="inline-flex min-h-[44px] items-center border border-ink-secondary px-5 text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse active:opacity-75"
+          class="btn-frame inline-flex min-h-[44px] items-center border border-ink-secondary px-5 text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse active:opacity-75"
         >
           View all {totalProjects} projects
         </a>

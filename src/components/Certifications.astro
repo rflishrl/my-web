@@ -3,18 +3,15 @@ import { portfolio } from '../data/portfolio';
 import RunningHeader from './RunningHeader.astro';
 ---
 
-<section id="certifications" aria-labelledby="certifications-heading" class="py-16 sm:py-24 md:py-36">
+<section id="certifications" class="py-16 sm:py-24 md:py-36">
   <div class="container-editorial">
     <RunningHeader right="Certifications" />
 
-    <h2
-      id="certifications-heading"
-      class="mt-10 text-[clamp(2.25rem,5vw,4.25rem)] font-bold leading-[1.05] tracking-[-0.03em] text-ink md:mt-16"
-    >
+    <h2 id="certifications-heading" class="mt-10 text-section text-ink md:mt-16">
       Certifications
     </h2>
 
-    <ol role="list" class="mt-10 divide-y divide-rule border-y border-rule md:mt-14">
+    <ol role="list" class="timeline-list mt-10 divide-y divide-rule border-y border-rule md:mt-14">
       {portfolio.certifications.map((cert) => (
         <li class="grid grid-cols-1 gap-3 py-7 md:grid-cols-12 md:items-baseline md:gap-8 md:py-8">
           <div class="md:col-span-3">

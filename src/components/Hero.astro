@@ -12,14 +12,23 @@ const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Jakarta',
 }).format(now);
 
+const buildIsoMonth = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  timeZone: 'Asia/Jakarta',
+}).format(now);
+
 const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf'));
 ---
 
-<section id="hero" class="first-section flex flex-col justify-between pt-6 pb-6 sm:pt-8 sm:pb-8 lg:pt-8 lg:pb-6">
+<section
+  id="hero"
+  class="first-section flex flex-col justify-between pt-6 pb-6 sm:pt-8 sm:pb-8 lg:pt-8 lg:pb-6"
+>
   <div class="container-editorial hero-stagger-1">
     <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm text-ink-secondary">
       <span>Selected Works · {buildYear}</span>
-      <span>{buildMonthYear}</span>
+      <time datetime={buildIsoMonth}>Updated {buildMonthYear}</time>
     </div>
   </div>
 
@@ -41,7 +50,8 @@ const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf')
             rel="noopener noreferrer"
             class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
           >
-            {profile.label}<span class="sr-only"> (opens in a new tab)</span>
+            {profile.label}
+            <span class="sr-only"> (opens in a new tab)</span>
           </a>
         ))}
         {resumeExists && (

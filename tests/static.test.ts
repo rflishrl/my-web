@@ -119,6 +119,8 @@ describe('Static verification of dist/', () => {
 
     let htmlLang = '';
     let viewportContent = '';
+    let textScaleContent = '';
+    let colorSchemeContent = '';
     let themeColorContent = '';
     let cspContent = '';
     let h1Count = 0;
@@ -128,16 +130,22 @@ describe('Static verification of dist/', () => {
     let topHeaderId = '';
     let headerButtons = 0;
     let headerSvgs = 0;
-    let headerAriaAttrs = 0;
+    let compactPopoverLists = 0;
     let brandLinkCount = 0;
-    let compactDetailsCount = 0;
+    let copyButtonsWithHidden = 0;
     const astroIslands: Array<{ componentUrl: string; client: string }> = [];
     const navFullLinks: Array<{ href: string; text: string; ariaLabel: string | null }> = [];
     const navCompactLinks: Array<{ href: string; text: string; ariaLabel: string | null }> = [];
-    const runningHeaders: Array<{ sectionNames: number; backToTopLinks: Array<{ href: string; text: string }> }> = [];
-    let currentRunningHeader: { sectionNames: number; backToTopLinks: Array<{ href: string; text: string }> } | null =
+    const runningHeaders: Array<{
+      sectionNames: number;
+      backToTopLinks: Array<{ href: string; text: string }>;
+    }> = [];
+    let currentRunningHeader: {
+      sectionNames: number;
+      backToTopLinks: Array<{ href: string; text: string }>;
+    } | null = null;
+    let captureTarget: { type: 'nav-full' | 'nav-links' | 'back-to-top'; index: number } | null =
       null;
-    let captureTarget: { type: 'nav-full' | 'nav-links' | 'back-to-top'; index: number } | null = null;
 
     const headings: number[] = [];
     const ids = new Set<string>();
@@ -173,6 +181,16 @@ describe('Static verification of dist/', () => {
       .on('meta[name="viewport"]', {
         element(el) {
           viewportContent = el.getAttribute('content') ?? '';
+        },
+      })
+      .on('meta[name="text-scale"]', {
+        element(el) {
+          textScaleContent = el.getAttribute('content') ?? '';
+        },
+      })
+      .on('meta[name="color-scheme"]', {
+        element(el) {
+          colorSchemeContent = el.getAttribute('content') ?? '';
         },
       })
       .on('meta[name="theme-color"]', {
@@ -213,7 +231,7 @@ describe('Static verification of dist/', () => {
           detailsCount += 1;
         },
       })
-      .on('header#top button', {
+      .on('header#top button.nav-menu-button[popovertarget]', {
         element() {
           headerButtons += 1;
         },
@@ -223,9 +241,14 @@ describe('Static verification of dist/', () => {
           headerSvgs += 1;
         },
       })
-      .on('header#top [aria-expanded], header#top [aria-haspopup], header#top [aria-controls]', {
+      .on('.nav-compact ul.nav-links[popover="auto"]', {
         element() {
-          headerAriaAttrs += 1;
+          compactPopoverLists += 1;
+        },
+      })
+      .on('button[data-copy-email][hidden]', {
+        element() {
+          copyButtonsWithHidden += 1;
         },
       })
       .on('.nav-full a', {
@@ -250,11 +273,6 @@ describe('Static verification of dist/', () => {
       .on('.nav-compact .nav-brand', {
         element() {
           brandLinkCount += 1;
-        },
-      })
-      .on('.nav-compact details', {
-        element() {
-          compactDetailsCount += 1;
         },
       })
       .on('.nav-links a', {
@@ -358,7 +376,7 @@ describe('Static verification of dist/', () => {
           if (src && /^https?:\/\//i.test(src)) {
             thirdPartyResourceUrls.push(src);
           }
-          if (!src && type !== 'application/ld+json') {
+          if (!src && type !== 'application/ld+json' && type !== 'speculationrules') {
             capturingInlineScript = true;
             currentInlineScript = '';
             el.onEndTag(() => {
@@ -381,20 +399,26 @@ describe('Static verification of dist/', () => {
     expect(viewportContent).toContain('viewport-fit=cover');
     expect(viewportContent).not.toMatch(/user-scalable/i);
     expect(viewportContent).not.toMatch(/maximum-scale/i);
+    expect(textScaleContent).toBe('scale');
+    expect(colorSchemeContent).toBe('light');
     expect(themeColorContent).toBe('#FFFFFF');
+    expect(copyButtonsWithHidden).toBe(0);
 
-    // Header & primary navigation structure
+    // Header & primary navigation structure (native popover button + list, zero <details>)
     expect(topHeaderId).toBe('top');
     expect(topHeaderIsDirectBodyChild).toBe(true);
-    expect(detailsCount).toBe(1);
-    expect(compactDetailsCount).toBe(1);
+    expect(detailsCount).toBe(0);
+    expect(compactPopoverLists).toBe(1);
     expect(brandLinkCount).toBe(0);
-    expect(headerButtons).toBe(0);
+    expect(headerButtons).toBe(1);
     expect(headerSvgs).toBe(0);
-    expect(headerAriaAttrs).toBe(0);
 
-    expect(navFullLinks.map((l) => ({ label: l.text.trim(), href: l.href }))).toEqual(EXPECTED_NAV_LINKS);
-    expect(navCompactLinks.map((l) => ({ label: l.text.trim(), href: l.href }))).toEqual(EXPECTED_NAV_LINKS);
+    expect(navFullLinks.map((l) => ({ label: l.text.trim(), href: l.href }))).toEqual(
+      EXPECTED_NAV_LINKS,
+    );
+    expect(navCompactLinks.map((l) => ({ label: l.text.trim(), href: l.href }))).toEqual(
+      EXPECTED_NAV_LINKS,
+    );
     for (const link of [...navFullLinks, ...navCompactLinks]) {
       expect(link.ariaLabel).toBeNull();
     }
@@ -426,15 +450,23 @@ describe('Static verification of dist/', () => {
     // Strict SHA-256 CSP covers every inline Astro island hydration script (no unsafe-inline)
     expect(cspContent).not.toContain("'unsafe-inline'");
     expect(cspContent).toContain("script-src 'self'");
+    expect(cspContent).toContain("'inline-speculation-rules'");
+    expect(cspContent).toContain("base-uri 'none'");
     for (const scriptBody of inlineExecutableScripts) {
       const digest = new Bun.CryptoHasher('sha256').update(scriptBody).digest('base64');
       expect(cspContent).toContain(`'sha256-${digest}'`);
     }
 
     // Astro Islands: NavMenu (client:media) + 2 CopyEmail (client:idle) + 2 DiagramViewer (client:media)
-    expect(astroIslands.some((i) => i.componentUrl.includes('NavMenu') && i.client === 'media')).toBe(true);
-    expect(astroIslands.filter((i) => i.componentUrl.includes('CopyEmail') && i.client === 'idle')).toHaveLength(2);
-    expect(astroIslands.filter((i) => i.componentUrl.includes('DiagramViewer') && i.client === 'media')).toHaveLength(2);
+    expect(
+      astroIslands.some((i) => i.componentUrl.includes('NavMenu') && i.client === 'media'),
+    ).toBe(true);
+    expect(
+      astroIslands.filter((i) => i.componentUrl.includes('CopyEmail') && i.client === 'idle'),
+    ).toHaveLength(2);
+    expect(
+      astroIslands.filter((i) => i.componentUrl.includes('DiagramViewer') && i.client === 'media'),
+    ).toHaveLength(2);
     expect(html).not.toContain('Architecture diagram');
 
     // Built JS checks: modular Svelte islands (no IntersectionObserver, no scroll listener, bounded gzip size)
@@ -470,7 +502,9 @@ describe('Static verification of dist/', () => {
 
     // Inline CSS active & Open Graph present
     expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["']/i);
-    expect(html).toContain('property="og:image" content="https://www.raflisahrul.my.id/og-image.png"');
+    expect(html).toContain(
+      'property="og:image" content="https://www.raflisahrul.my.id/og-image.png"',
+    );
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
 
     // Featured projects on /: BrandMuse, muatmuat Plus, RT Online + link to /projects
@@ -515,6 +549,9 @@ describe('Static verification of dist/', () => {
     expect(projectsHtml).toContain('id="project-05"');
     expect(projectsHtml).toContain('Desa Pendil');
     expect(projectsHtml).toContain('Sinar Berkah');
+
+    const notFoundHtml = fs.readFileSync(path.join(distDir, '404.html'), 'utf8');
+    expect(notFoundHtml).toContain('<title>Page not found — Rafli Sahrul</title>');
   });
 
   test('Built CSS enforces positioning, opacity, typography, and foldable env() rules', () => {
@@ -522,6 +559,9 @@ describe('Static verification of dist/', () => {
     const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
     expect(styleMatches.length).toBeGreaterThan(0);
     const css = styleMatches.map((m) => m[1]!).join('\n');
+
+    // Latin-only font subsetting: exactly 2 @font-face declarations
+    expect([...css.matchAll(/@font-face/gi)].length).toBe(2);
 
     // No position: fixed and no backdrop-filter declaration
     expect(css).not.toMatch(/position\s*:\s*fixed/i);
@@ -536,9 +576,10 @@ describe('Static verification of dist/', () => {
     expect(stickyMatches.length).toBe(2);
     for (const m of stickyMatches) {
       const ctx = findEnclosingAtRule(css, m.index!);
-      expect(ctx.length).toBe(2);
-      expect(ctx[1]).toBe('.site-header');
-      expect(ctx[0]).toMatch(/@media\s*\((?:width|min-width).*(?:height|min-height).*37\.5em\)/);
+      expect(ctx.length).toBe(3);
+      expect(ctx[0]).toBe('@layer components');
+      expect(ctx[2]).toBe('.site-header');
+      expect(ctx[1]).toMatch(/@media\s*\((?:width|min-width).*(?:height|min-height).*37\.5em\)/);
     }
 
     // Every env(viewport-segment-*) call has a fallback and sits inside a viewport-segments media query

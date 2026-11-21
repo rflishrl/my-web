@@ -23,8 +23,24 @@ const WCAG_TEXT_SPACING_CSS = `
   }
 `;
 
-const EXPECTED_NAV_LABELS = ['About', 'Experience', 'Education', 'Stack', 'Certs', 'Projects', 'Contact'];
-const EXPECTED_NAV_HREFS = ['#about', '#experience', '#education', '#stack', '#certifications', '#projects', '#contact'];
+const EXPECTED_NAV_LABELS = [
+  'About',
+  'Experience',
+  'Education',
+  'Stack',
+  'Certs',
+  'Projects',
+  'Contact',
+];
+const EXPECTED_NAV_HREFS = [
+  '#about',
+  '#experience',
+  '#education',
+  '#stack',
+  '#certifications',
+  '#projects',
+  '#contact',
+];
 
 const VIEWPORTS: Array<[number, number]> = [
   [320, 568],
@@ -180,8 +196,14 @@ describe('Browser verification against built dist/', () => {
         const vw = window.innerWidth;
         const overflow = document.documentElement.scrollWidth > vw;
         const clipped: string[] = [];
-        for (const el of document.querySelectorAll<HTMLElement>('h1, h2, h3, h4, p, li, a, button, summary, dt, dd')) {
-          if (el.closest('.sr-only') || el.classList.contains('sr-only') || el.classList.contains('skip-link')) {
+        for (const el of document.querySelectorAll<HTMLElement>(
+          'h1, h2, h3, h4, p, li, a, button, summary, dt, dd',
+        )) {
+          if (
+            el.closest('.sr-only') ||
+            el.classList.contains('sr-only') ||
+            el.classList.contains('skip-link')
+          ) {
             continue;
           }
           const style = getComputedStyle(el);
@@ -189,9 +211,14 @@ describe('Browser verification against built dist/', () => {
           const rect = el.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) continue;
           if (rect.left < -0.5 || rect.right > vw + 0.5) {
-            clipped.push(`${el.tagName}:${el.textContent?.trim().slice(0, 30)} (${rect.left.toFixed(1)}..${rect.right.toFixed(1)} vs ${vw})`);
+            clipped.push(
+              `${el.tagName}:${el.textContent?.trim().slice(0, 30)} (${rect.left.toFixed(1)}..${rect.right.toFixed(1)} vs ${vw})`,
+            );
           }
-          if ((style.overflowX === 'hidden' || style.overflowX === 'clip') && el.scrollWidth > el.clientWidth + 1) {
+          if (
+            (style.overflowX === 'hidden' || style.overflowX === 'clip') &&
+            el.scrollWidth > el.clientWidth + 1
+          ) {
             clipped.push(`clipped-x:${el.tagName}:${el.textContent?.trim().slice(0, 30)}`);
           }
         }
@@ -305,13 +332,13 @@ describe('Browser verification against built dist/', () => {
         const headerRect = header.getBoundingClientRect();
         const h1 = document.querySelector<HTMLElement>('h1.hero-wordmark')!;
         const h1Rect = h1.getBoundingClientRect();
-        const summary = document.querySelector<HTMLElement>('.nav-menu summary')!;
+        const menuBtn = document.querySelector<HTMLElement>('.nav-menu-button')!;
         const panelLinks = Array.from(document.querySelectorAll<HTMLElement>('.nav-links a'));
         return {
           headerClientHeight: header.clientHeight,
           headerHeight: headerRect.height,
           hasBrand: document.querySelector('.nav-brand') !== null,
-          summaryVisible: summary.offsetParent !== null,
+          menuBtnVisible: menuBtn.offsetParent !== null,
           anyPanelLinkVisible: panelLinks.some((a) => a.offsetParent !== null),
           h1Top: h1Rect.top,
           h1Bottom: h1Rect.bottom,
@@ -321,7 +348,7 @@ describe('Browser verification against built dist/', () => {
       });
 
       expect(metrics.hasBrand).toBe(false);
-      expect(metrics.summaryVisible).toBe(true);
+      expect(metrics.menuBtnVisible).toBe(true);
       expect(metrics.anyPanelLinkVisible).toBe(false);
       expect(metrics.headerClientHeight).toBe(44 + 62);
       expect(metrics.headerHeight).toBeLessThanOrEqual(44 + 62 + 1);
@@ -333,11 +360,13 @@ describe('Browser verification against built dist/', () => {
     }
 
     // Open via click, Enter, and Space; check panel opacity, link order, height >= 44px, and close triggers
-    const summary = page.locator('.nav-menu summary');
-    const details = page.locator('.nav-menu');
+    const menuBtn = page.locator('.nav-menu-button');
+    const navPanel = page.locator('ul.nav-links');
+    const isPanelOpen = () => navPanel.evaluate((el) => el.matches(':popover-open'));
 
-    await summary.click();
-    expect(await details.getAttribute('open')).not.toBeNull();
+    await menuBtn.click();
+    expect(await isPanelOpen()).toBe(true);
+    expect(await menuBtn.getAttribute('aria-expanded')).toBe('true');
 
     const panelMetrics = await page.evaluate(() => {
       const panel = document.querySelector<HTMLElement>('.nav-links')!;
@@ -366,30 +395,33 @@ describe('Browser verification against built dist/', () => {
       expect(h).toBeGreaterThanOrEqual(44);
     }
 
-    // Escape closes and returns focus to summary
+    // Escape closes and returns focus to Menu button
     await page.keyboard.press('Escape');
-    expect(await details.getAttribute('open')).toBeNull();
-    expect(await page.evaluate(() => document.activeElement?.tagName.toLowerCase())).toBe('summary');
+    expect(await isPanelOpen()).toBe(false);
+    expect(await menuBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(await page.evaluate(() => document.activeElement?.className ?? '')).toContain(
+      'nav-menu-button',
+    );
 
     // Space opens, tap outside closes
     await page.keyboard.press('Space');
-    expect(await details.getAttribute('open')).not.toBeNull();
+    expect(await isPanelOpen()).toBe(true);
     await page.mouse.click(200, 500);
-    expect(await details.getAttribute('open')).toBeNull();
+    expect(await isPanelOpen()).toBe(false);
 
     // Enter opens, focus leaving nav closes
-    await summary.focus();
+    await menuBtn.focus();
     await page.keyboard.press('Enter');
-    expect(await details.getAttribute('open')).not.toBeNull();
+    expect(await isPanelOpen()).toBe(true);
     await page.locator('#hero a').first().focus();
-    expect(await details.getAttribute('open')).toBeNull();
+    expect(await isPanelOpen()).toBe(false);
 
     // Link activation closes panel and target section heading clears sticky header
-    await summary.click();
-    expect(await details.getAttribute('open')).not.toBeNull();
+    await menuBtn.click();
+    expect(await isPanelOpen()).toBe(true);
     await page.locator('.nav-links a[href="#experience"]').click();
     await page.waitForTimeout(300);
-    expect(await details.getAttribute('open')).toBeNull();
+    expect(await isPanelOpen()).toBe(false);
     const expCheck = await page.evaluate(() => ({
       headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
       headingTop: document.getElementById('experience-heading')!.getBoundingClientRect().top,
@@ -550,13 +582,15 @@ describe('Browser verification against built dist/', () => {
         const vw = window.innerWidth;
         const violations: string[] = [];
         for (const el of document.querySelectorAll<HTMLElement>(
-          '.site-nav a, .site-nav summary, #hero h1, #hero p, #hero a, #hero button, #about p, #about dt, #about dd, #experience h3, #experience p, #experience li, #education h3, #education p, #certifications h3, #projects h3, #projects p, #projects a, #contact h2, #contact a, #contact button',
+          '.site-nav a, .site-nav button, #hero h1, #hero p, #hero a, #hero button, #about p, #about dt, #about dd, #experience h3, #experience p, #experience li, #education h3, #education p, #certifications h3, #projects h3, #projects p, #projects a, #contact h2, #contact a, #contact button',
         )) {
           if (el.offsetParent === null || el.closest('.sr-only')) continue;
           const rect = el.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) continue;
           if (rect.left < 58.5 || rect.right > vw - 58.5) {
-            violations.push(`${el.tagName}:${el.textContent?.trim().slice(0, 24)} (${rect.left.toFixed(1)}..${rect.right.toFixed(1)} in ${vw})`);
+            violations.push(
+              `${el.tagName}:${el.textContent?.trim().slice(0, 24)} (${rect.left.toFixed(1)}..${rect.right.toFixed(1)} in ${vw})`,
+            );
           }
         }
         return violations;
@@ -605,12 +639,14 @@ describe('Browser verification against built dist/', () => {
     const page = await context.newPage();
     await waitForPageReady(page, 393, 852);
 
-    // Compact mode: brand, Menu summary, open panel links, Hero links & Copy button
+    // Compact mode: Menu button, open panel links, Hero links & Copy button
     await page.locator('#hero [data-copy-email]').waitFor({ state: 'visible' });
-    await page.locator('.nav-menu summary').click();
+    await page.locator('.nav-menu-button').click();
     const compactTargets = await page.evaluate(() => {
       const items = [
-        ...document.querySelectorAll<HTMLElement>('.nav-compact a, .nav-compact summary, #hero a, #hero button:not([hidden])'),
+        ...document.querySelectorAll<HTMLElement>(
+          '.nav-compact a, .nav-compact button, #hero a, #hero button:not([hidden])',
+        ),
       ];
       return items.map((el) => {
         const r = el.getBoundingClientRect();
@@ -714,7 +750,7 @@ describe('Browser verification against built dist/', () => {
     });
     expect(axe393Closed.violations).toEqual([]);
 
-    await page.locator('.nav-menu summary').click();
+    await page.locator('.nav-menu-button').click();
     const axe393Open = await page.evaluate(async () => {
       // @ts-expect-error injected via addScriptTag
       return await window.axe.run(document, {
@@ -753,7 +789,7 @@ describe('Browser verification against built dist/', () => {
     expect(firstFocused.className).toContain('skip-link');
     expect(firstFocused.href).toBe('#main-content');
 
-    // Copy email buttons hydrate cleanly (client:idle) and announce on click
+    // Copy email buttons hydrate cleanly (client:idle) and announce in adjacent role="status"
     const copyBtns = page.locator('[data-copy-email]');
     expect(await copyBtns.count()).toBe(2);
     await copyBtns.first().waitFor({ state: 'visible' });
@@ -762,12 +798,12 @@ describe('Browser verification against built dist/', () => {
     await copyBtns.nth(1).waitFor({ state: 'visible' });
     await copyBtns.nth(1).click();
     await page.waitForFunction(() =>
-      Array.from(document.querySelectorAll('[data-copy-email]')).every(
+      Array.from(document.querySelectorAll('[data-copy-status]')).every(
         (el) => el.textContent?.trim() === 'Copied',
       ),
     );
-    const statusText = await page.locator('#copy-status').textContent();
-    expect(statusText?.length).toBeGreaterThan(0);
+    const buttonLabels = await copyBtns.allTextContents();
+    expect(buttonLabels.map((s) => s.trim())).toEqual(['Copy email', 'Copy email']);
 
     // Portrait image decodes cleanly
     const portrait = page.locator('#about img');
@@ -775,7 +811,12 @@ describe('Browser verification against built dist/', () => {
     const portraitMetrics = await portrait.evaluate(async (img: HTMLImageElement) => {
       await img.decode();
       const r = img.getBoundingClientRect();
-      return { complete: img.complete, naturalWidth: img.naturalWidth, width: r.width, height: r.height };
+      return {
+        complete: img.complete,
+        naturalWidth: img.naturalWidth,
+        width: r.width,
+        height: r.height,
+      };
     });
     expect(portraitMetrics.complete).toBe(true);
     expect(portraitMetrics.naturalWidth).toBeGreaterThan(0);
@@ -824,7 +865,9 @@ describe('Browser verification against built dist/', () => {
       await waitForPageReady(dPage, 1440, 900);
 
       await dPage.evaluate(() => window.scrollTo({ top: 1500, behavior: 'instant' }));
-      expect(await dPage.locator('.site-header').evaluate((el) => el.getBoundingClientRect().top)).toBe(0);
+      expect(
+        await dPage.locator('.site-header').evaluate((el) => el.getBoundingClientRect().top),
+      ).toBe(0);
       await dPage.locator('.nav-full a[href="#projects"]').click();
       await dPage.waitForTimeout(300);
       expect(await dPage.evaluate(() => window.scrollY)).toBeGreaterThan(400);
@@ -839,14 +882,14 @@ describe('Browser verification against built dist/', () => {
       const mPage = await mCtx.newPage();
       await waitForPageReady(mPage, 393, 852, true);
 
-      const summary = mPage.locator('.nav-menu summary');
-      const details = mPage.locator('.nav-menu');
-      await summary.tap();
-      expect(await details.getAttribute('open')).not.toBeNull();
+      const menuBtn = mPage.locator('.nav-menu-button');
+      const navPanel = mPage.locator('ul.nav-links');
+      await menuBtn.tap();
+      expect(await navPanel.evaluate((el) => el.matches(':popover-open'))).toBe(true);
 
       await mPage.locator('.nav-links a[href="#projects"]').tap();
       await mPage.waitForTimeout(400);
-      expect(await details.getAttribute('open')).toBeNull();
+      expect(await navPanel.evaluate((el) => el.matches(':popover-open'))).toBe(false);
       expect(await mPage.evaluate(() => window.scrollY)).toBeGreaterThan(400);
       await mCtx.close();
     } finally {
@@ -871,7 +914,9 @@ describe('Browser verification against built dist/', () => {
     await page.evaluate(() => document.fonts.ready);
 
     expect(await page.locator('#projects article').count()).toBe(5);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
 
     await page.addScriptTag({ content: axeSource });
     const axeProjects = await page.evaluate(async () => {
@@ -883,7 +928,9 @@ describe('Browser verification against built dist/', () => {
     expect(axeProjects.violations).toEqual([]);
 
     await page.setViewportSize({ width: 393, height: 852 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
 
     await page.locator('a[href="/"]').first().click();
     await page.waitForURL(`${baseUrl}/`);
@@ -908,20 +955,28 @@ describe('Browser verification against built dist/', () => {
     const copyBtn = page.locator('[data-copy-email]').first();
     await copyBtn.waitFor({ state: 'visible' });
     await copyBtn.click();
-    await page.waitForFunction(() => document.querySelector('[data-copy-email]')?.textContent?.trim() === 'Copied');
+    await page.waitForFunction(
+      () => document.querySelector('[data-copy-status]')?.textContent?.trim() === 'Copied',
+    );
 
-    const summary = page.locator('.nav-menu summary');
-    const details = page.locator('.nav-menu');
-    await summary.click();
-    expect(await details.getAttribute('open')).not.toBeNull();
+    const menuBtn = page.locator('.nav-menu-button');
+    const navPanel = page.locator('ul.nav-links');
+    await menuBtn.click();
+    expect(await navPanel.evaluate((el) => el.matches(':popover-open'))).toBe(true);
     await page.keyboard.press('Escape');
-    expect(await details.getAttribute('open')).toBeNull();
+    expect(await navPanel.evaluate((el) => el.matches(':popover-open'))).toBe(false);
 
     const diagramTrigger = page.locator('button[aria-label^="Zoom diagram:"]').first();
     await diagramTrigger.scrollIntoViewIfNeeded();
     await diagramTrigger.click();
-    await page.locator('dialog.diagram-dialog[open]').getByRole('button', { name: 'Zoom in' }).click();
-    await page.locator('dialog.diagram-dialog[open]').getByRole('button', { name: 'Close' }).click();
+    await page
+      .locator('dialog.diagram-dialog[open]')
+      .getByRole('button', { name: 'Zoom in' })
+      .click();
+    await page
+      .locator('dialog.diagram-dialog[open]')
+      .getByRole('button', { name: 'Close' })
+      .click();
 
     expect(consoleErrors).toEqual([]);
     await context.close();
@@ -957,13 +1012,17 @@ describe('Browser verification against built dist/', () => {
     await trigger.tap();
     const dialog = page.locator('dialog.diagram-dialog[open]');
     await dialog.waitFor({ state: 'visible' });
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toBe(
+      'Zoom in',
+    );
 
     const modalSvg = dialog.locator('svg');
     const initialWidth = Number(await modalSvg.getAttribute('width'));
     expect(initialWidth).toBe(950);
 
     // Zoom in and out inside the dialog without changing outer webpage dimensions
-    await dialog.getByRole('button', { name: 'Zoom in' }).click();
+    const zoomInBtn = dialog.getByRole('button', { name: 'Zoom in' });
+    await zoomInBtn.click();
     expect(Number(await modalSvg.getAttribute('width'))).toBe(Math.round(950 * 1.25));
     expect(await dialog.getByText('125%').isVisible()).toBe(true);
 
@@ -983,6 +1042,17 @@ describe('Browser verification against built dist/', () => {
     await dialog.getByRole('button', { name: 'Reset' }).click();
     expect(Number(await modalSvg.getAttribute('width'))).toBe(950);
 
+    // Reaching max/min zoom preserves keyboard focus via aria-disabled (no disabled focus loss)
+    await zoomInBtn.focus();
+    for (let i = 0; i < 8; i += 1) {
+      await page.keyboard.press('Enter');
+    }
+    expect(await zoomInBtn.getAttribute('aria-disabled')).toBe('true');
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toBe(
+      'Zoom in',
+    );
+    await dialog.getByRole('button', { name: 'Reset' }).click();
+
     // axe-core WCAG 2.2 AA while modal is open
     await page.addScriptTag({ content: axeSource });
     const axeModal = await page.evaluate(async () => {
@@ -997,7 +1067,9 @@ describe('Browser verification against built dist/', () => {
     await page.keyboard.press('Escape');
     expect(await page.locator('dialog.diagram-dialog[open]').count()).toBe(0);
     expect(
-      await page.evaluate(() => document.activeElement?.getAttribute('aria-label')?.startsWith('Zoom diagram:')),
+      await page.evaluate(() =>
+        document.activeElement?.getAttribute('aria-label')?.startsWith('Zoom diagram:'),
+      ),
     ).toBe(true);
 
     expect(consoleErrors).toEqual([]);

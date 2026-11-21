@@ -4,23 +4,25 @@ import RunningHeader from '../components/RunningHeader.astro';
 import { portfolio } from '../data/portfolio';
 ---
 
-<BaseLayout title={`404 — ${portfolio.displayName}`} description="Page not found." noindex>
-  <main id="main-content" tabindex="-1" class="flex min-h-[100svh] flex-col justify-between py-8 sm:py-12">
+<BaseLayout
+  title={`Page not found — ${portfolio.displayName}`}
+  description="Page not found."
+  noindex
+>
+  <main id="main-content" class="flex min-h-[100svh] flex-col justify-between py-8 sm:py-12">
     <div class="container-editorial">
       <RunningHeader right="404" />
     </div>
 
     <div class="container-editorial my-auto py-16">
       <p class="font-mono text-sm text-ink-secondary">404</p>
-      <h1 class="mt-3 text-[clamp(2.5rem,7vw,5.5rem)] font-bold leading-[1.02] tracking-[-0.03em] text-ink">
-        Page not found
-      </h1>
+      <h1 class="mt-3 text-page-title text-ink">Page not found</h1>
       <p class="mt-4 max-w-[46ch] text-base leading-[1.6] text-ink-secondary">
         The address you requested does not exist on this site.
       </p>
       <a
         href="/"
-        class="mt-8 inline-flex min-h-[44px] items-center border border-ink-secondary px-5 text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse active:opacity-75"
+        class="btn-frame mt-8 inline-flex min-h-[44px] items-center border border-ink-secondary px-5 text-sm text-ink transition-colors duration-150 hover:border-ink hover:bg-ink hover:text-ink-inverse active:opacity-75"
       >
         Return to home
       </a>

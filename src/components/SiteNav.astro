@@ -9,7 +9,7 @@ interface Props {
 
 const { homePrefix = '', currentPage = 'home' } = Astro.props;
 const navLinks = getNavLinks(homePrefix, currentPage);
-const compactMediaQuery = '(min-width: 22.5em) and (max-width: 39.99em) and (min-height: 37.5em)';
+const compactMediaQuery = '(22.5em <= width < 40em) and (height >= 37.5em)';
 ---
 
 <header class="site-header" id="top">
@@ -24,7 +24,55 @@ const compactMediaQuery = '(min-width: 22.5em) and (max-width: 39.99em) and (min
       ))}
     </ul>
     <div class="nav-compact">
-      <NavMenu client:media={compactMediaQuery} links={navLinks} compactMediaQuery={compactMediaQuery} />
+      <NavMenu
+        client:media={compactMediaQuery}
+        links={navLinks}
+        compactMediaQuery={compactMediaQuery}
+      />
     </div>
   </nav>
 </header>
+
+{currentPage === 'home' && <script>
+  const navLinks = Array.from(
+    document.querySelectorAll<HTMLAnchorElement>('.nav-full a, .nav-links a'),
+  );
+  const setActiveHref = (href: string | null): void => {
+    for (const link of navLinks) {
+      const isActive = href !== null && link.getAttribute('href') === href;
+      link.classList.toggle('target-current', isActive);
+      if (isActive) {
+        link.setAttribute('aria-current', 'true');
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    }
+  };
+
+  if (CSS.supports('scroll-target-group: auto')) {
+    const syncAriaCurrent = (): void => {
+      const currentLink = document.querySelector<HTMLAnchorElement>(
+        '.nav-full a:target-current, .nav-links a:target-current',
+      );
+      setActiveHref(currentLink ? currentLink.getAttribute('href') : null);
+    };
+    syncAriaCurrent();
+    document.addEventListener('scrollend', syncAriaCurrent);
+    window.addEventListener('hashchange', syncAriaCurrent);
+  } else {
+    const sections = document.querySelectorAll<HTMLElement>('main section[id], footer[id]');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveHref(`#${entry.target.id}`);
+          }
+        }
+      },
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
+    );
+    for (const section of sections) {
+      observer.observe(section);
+    }
+  }
+</script>}

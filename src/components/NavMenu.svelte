@@ -7,36 +7,27 @@
   }
 
   const { links, compactMediaQuery }: Props = $props();
+  const uid = $props.id();
+  const menuId = `nav-links-${uid}`;
 
-  let detailsEl = $state<HTMLDetailsElement | null>(null);
-  let summaryEl = $state<HTMLElement | null>(null);
+  let containerEl = $state<HTMLDivElement | null>(null);
+  let popoverEl = $state<HTMLUListElement | null>(null);
+  let isOpen = $state(false);
 
   function close(): void {
-    if (detailsEl) {
-      detailsEl.open = false;
+    if (popoverEl && isOpen) {
+      popoverEl.hidePopover();
     }
   }
 
-  function handleKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && detailsEl?.open) {
-      close();
-      summaryEl?.focus();
-    }
-  }
-
-  function handlePointerDown(event: PointerEvent): void {
-    if (!detailsEl?.open || !(event.target instanceof Node)) return;
-    const navEl = detailsEl.closest('.site-nav') ?? detailsEl;
-    if (!navEl.contains(event.target)) {
-      close();
-    }
+  function handleToggle(event: ToggleEvent): void {
+    isOpen = event.newState === 'open';
   }
 
   function handleFocusOut(event: FocusEvent): void {
-    if (!detailsEl?.open) return;
+    if (!isOpen || !containerEl) return;
     const nextFocus = event.relatedTarget;
-    const navEl = detailsEl.closest('.site-nav') ?? detailsEl;
-    if (nextFocus instanceof Node && !navEl.contains(nextFocus)) {
+    if (nextFocus instanceof Node && !containerEl.contains(nextFocus)) {
       close();
     }
   }
@@ -55,11 +46,18 @@
   });
 </script>
 
-<svelte:window onkeydown={handleKeydown} onpointerdown={handlePointerDown} />
-
-<details class="nav-menu" bind:this={detailsEl} onfocusout={handleFocusOut}>
-  <summary bind:this={summaryEl}>Menu</summary>
-  <ul class="nav-links">
+<div class="nav-menu" bind:this={containerEl} onfocusout={handleFocusOut}>
+  <button
+    type="button"
+    class="nav-menu-button"
+    popovertarget={menuId}
+    popovertargetaction="toggle"
+    aria-controls={menuId}
+    aria-expanded={isOpen ? 'true' : 'false'}
+  >
+    Menu
+  </button>
+  <ul id={menuId} bind:this={popoverEl} class="nav-links" popover="auto" ontoggle={handleToggle}>
     {#each links as item (item.href)}
       <li>
         <a href={item.href} aria-current={item.current ? 'page' : undefined} onclick={close}>
@@ -68,4 +66,4 @@
       </li>
     {/each}
   </ul>
-</details>
+</div>

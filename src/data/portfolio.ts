@@ -92,19 +92,21 @@ export const portfolio: PortfolioData = {
   displayName: 'Rafli Sahrul',
   legalName: 'Muhammad Rafli Sahrul Ramadhan',
   headline: 'Software & AI Engineer',
-  location: 'Malang, Indonesia',
+  location: 'Malang, East Java, Indonesia',
   email: 'rafliworkspace@gmail.com',
   availability: 'Open to freelance projects and full-time roles',
-  currentFocus: 'Full-stack web systems and production AI/LLM engineering (RAG and multi-agent workflows)',
-  portraitAlt: 'Portrait of Rafli Sahrul in a dark batik shirt, arms crossed, against a white background',
+  currentFocus:
+    'Full-stack web systems and production AI/LLM engineering (RAG and multi-agent workflows)',
+  portraitAlt:
+    'Portrait of Rafli Sahrul in a dark batik shirt, arms crossed, against a white background',
   profiles: [
     { label: 'GitHub', url: 'https://github.com/rflishrl' },
     { label: 'LinkedIn', url: 'https://www.linkedin.com/in/rflishrl' },
   ],
   bio: [
-    'I am a Software Engineer focused on full-stack web systems and applied AI engineering. My production work spans TypeScript, Next.js, React, PHP (Laravel), and Python (FastAPI), backed by PostgreSQL, MySQL, Docker, and AWS.',
+    'I am a Software Engineer who builds full-stack web applications and production AI systems. My work spans JavaScript and TypeScript (Next.js, React, Node.js), PHP (Laravel), and Python (FastAPI), backed by PostgreSQL, MySQL, Docker, and AWS.',
     'In AI engineering, I build retrieval-augmented generation pipelines, hybrid vector and keyword search, document preprocessing workflows, and multi-agent systems using LangChain, LangGraph, Flowise, Ollama, and DeepSeek. I focus on accurate context retrieval and reliable runtime behavior.',
-    'Across enterprise, agency, and independent projects, I have delivered backend APIs serving over 1,000 active users, automated Playwright test suites, and public web portals designed for semantic clarity, accessibility, and fast page loads.',
+    'Across enterprise, agency, and independent projects, I have delivered RESTful APIs serving over 1,000 active users, SQL query optimizations, automated Playwright test suites, and accessible web portals.',
   ],
   experience: [
     {
@@ -113,9 +115,9 @@ export const portfolio: PortfolioData = {
       period: 'Oct 2025 — Dec 2025',
       location: 'Surabaya, East Java, Indonesia',
       bullets: [
-        'Engineered responsive web deliverables for muatmuat Plus (Domestic and International) using Next.js, TypeScript, and Tailwind CSS, aligning with the corporate design system.',
-        'Used AI-assisted development tools (Cursor) to accelerate UI and API integration turnaround by ~35% while maintaining clean code standards.',
-        'Built automated end-to-end testing suites with Playwright and Katalon Studio, expanding regression test coverage and streamlining QA validation.',
+        'Built responsive UI components and cross-page flows for muatmuat Plus (Domestic and International) in Next.js, TypeScript, and Tailwind CSS to match the company design system.',
+        'Used Cursor in daily development to help the frontend team ship UI pages and RESTful API integrations (product listings, order management, and subscriptions) faster with clean code.',
+        'Wrote automated end-to-end tests in Playwright and Katalon Studio to catch regressions across key user flows before release.',
       ],
     },
     {
@@ -124,10 +126,8 @@ export const portfolio: PortfolioData = {
       period: 'May 2025 — Jul 2025',
       location: 'South Jakarta, Jakarta, Indonesia',
       bullets: [
-        'Deployed and configured enterprise Trend Micro security solutions tailored to specific client infrastructure requirements.',
-        'Resolved L1/L2 technical support escalations, reducing average incident resolution time (MTTR) through proactive root-cause analysis.',
-        'Collaborated with presales engineering to formulate technical architecture proposals and client-tailored cybersecurity designs.',
-        'Authored technical documentation and led interactive training sessions for internal teams and enterprise end-users to drive product adoption.',
+        'Installed and configured enterprise Trend Micro security products for client environments with zero post-install defects, and worked with the presales team on technical architecture proposals.',
+        'Resolved 40+ L1 and L2 support escalations and cut average incident resolution time (MTTR) by ~25% through root-cause analysis and internal documentation.',
       ],
     },
     {
@@ -136,10 +136,10 @@ export const portfolio: PortfolioData = {
       period: 'Nov 2024 — May 2025',
       location: 'West Jakarta, Jakarta, Indonesia',
       bullets: [
-        'Architected a hybrid retrieval layer for an enterprise RAG system, combining dense vector embeddings with keyword search and metadata filtering for high-accuracy context retrieval.',
-        'Developed and deployed multi-agent conversational workflows utilizing LangChain, LangGraph, Flowise, Ollama, and DeepSeek.',
-        'Established document preprocessing pipelines for text extraction, layout normalization, and chunking across semi-structured datasets.',
-        'Implemented high-throughput Knowledge APIs and managed containerized hosting environments on AWS EC2 with 99.5%+ uptime.',
+        'Built the hybrid retrieval layer for a production RAG system using vector search, keyword search, metadata filtering, and access controls so answers stay grounded in accurate context.',
+        'Built and deployed multi-agent chatbot workflows with LangChain, LangGraph, Flowise, Ollama, and DeepSeek.',
+        'Set up document preprocessing pipelines (layout processing, text normalization, metadata extraction, and semantic chunking) to turn semi-structured files into searchable RAG data.',
+        'Built Knowledge APIs for AI agents to consume and ran containerized deployments on AWS EC2 with 99.5%+ uptime.',
       ],
     },
     {
@@ -148,10 +148,10 @@ export const portfolio: PortfolioData = {
       period: 'Nov 2023 — Apr 2024',
       location: 'Malang, East Java, Indonesia',
       bullets: [
-        'Led backend engineering for the RT Online application, enforcing clean MVC architecture and separation of concerns in Laravel (PHP).',
-        'Designed and documented RESTful API endpoints for Flutter mobile clients, ensuring low-latency data exchange and reliable payload handling.',
-        'Optimized MySQL database schemas and indexing strategies, reducing query latency and improving overall application throughput.',
-        'Developed modular, reusable Angular components based on UI/UX mockups, delivering a cohesive full-stack user experience.',
+        'Led the backend team for the RT Online app and structured the Laravel (PHP) codebase around the MVC pattern to separate request handling from application logic.',
+        'Designed and documented RESTful APIs for Flutter mobile clients with consistent contracts and reliable payload handling.',
+        'Normalized MySQL schemas and tuned composite indexes and SQL queries to remove bottlenecks, speed up queries, and cut API response latency.',
+        'Turned UI/UX mockups into reusable Angular components and wired them to the backend.',
       ],
     },
   ],
@@ -160,7 +160,6 @@ export const portfolio: PortfolioData = {
       institution: 'BINUS University',
       program: 'Bachelor of Science in Information Systems',
       period: 'Aug 2026 — Present',
-      gpa: 'To Be Announced',
     },
     {
       institution: 'Telkom Vocational High School Malang',
@@ -168,8 +167,8 @@ export const portfolio: PortfolioData = {
       period: 'Jul 2021 — Jun 2024',
       gpa: 'GPA: 87.52 / 100.00',
       honors: [
-        'Finalist Moklet Idea Challenge 2023',
-        'Top 10 Playbox Season 2 Startup Competition',
+        'Finalist, Moklet Idea Challenge (2023)',
+        'Top 10, Playbox Startup Competition (2021)',
       ],
     },
   ],
@@ -274,6 +273,7 @@ export const portfolio: PortfolioData = {
       index: '04',
       title: 'TOEIC',
       issuer: 'ETS',
+      subtitle: 'Score: 615',
     },
   ],
   projects: [
@@ -284,7 +284,8 @@ export const portfolio: PortfolioData = {
       featured: true,
       role: 'AI Engineer, Personal Project',
       task: 'Creative teams needed an assistant to answer brand guideline questions with page citations and generate campaign concepts from a creative brief, while isolating uploads against prompt injection.',
-      solution: 'Built a FastAPI and React app with hybrid pgvector plus PostgreSQL full-text search via Reciprocal Rank Fusion (100% hit rate @5 on 18 test questions), LangChain structured retries, SSE streaming, Langfuse tracing, and 98/100 Lighthouse accessibility.',
+      solution:
+        'Built a FastAPI and React app with hybrid pgvector plus PostgreSQL full-text search via Reciprocal Rank Fusion (100% hit rate @5 on 18 test questions), LangChain structured retries, SSE streaming, Langfuse tracing, and 98/100 Lighthouse accessibility.',
       tech: [
         'Python',
         'FastAPI',
@@ -310,11 +311,51 @@ export const portfolio: PortfolioData = {
         width: 950,
         height: 300,
         nodes: [
-          { id: 'ui', label: 'React + Vite Client', sublabel: 'Cloudflare Pages', x: 20, y: 112, w: 175, h: 76 },
-          { id: 'api', label: 'FastAPI Service', sublabel: 'Render (Docker) · SSE', x: 310, y: 112, w: 185, h: 76 },
-          { id: 'db', label: 'Neon PostgreSQL', sublabel: 'pgvector + FTS (RRF)', x: 650, y: 22, w: 280, h: 70 },
-          { id: 'r2', label: 'Cloudflare R2', sublabel: 'Guideline Object Storage', x: 650, y: 115, w: 280, h: 70 },
-          { id: 'llm', label: 'LangChain + Providers', sublabel: 'Gemini · OpenAI · Ollama · Langfuse', x: 650, y: 208, w: 280, h: 70 },
+          {
+            id: 'ui',
+            label: 'React + Vite Client',
+            sublabel: 'Cloudflare Pages',
+            x: 20,
+            y: 112,
+            w: 175,
+            h: 76,
+          },
+          {
+            id: 'api',
+            label: 'FastAPI Service',
+            sublabel: 'Render (Docker) · SSE',
+            x: 310,
+            y: 112,
+            w: 185,
+            h: 76,
+          },
+          {
+            id: 'db',
+            label: 'Neon PostgreSQL',
+            sublabel: 'pgvector + FTS (RRF)',
+            x: 650,
+            y: 22,
+            w: 280,
+            h: 70,
+          },
+          {
+            id: 'r2',
+            label: 'Cloudflare R2',
+            sublabel: 'Guideline Object Storage',
+            x: 650,
+            y: 115,
+            w: 280,
+            h: 70,
+          },
+          {
+            id: 'llm',
+            label: 'LangChain + Providers',
+            sublabel: 'Gemini · OpenAI · Ollama · Langfuse',
+            x: 650,
+            y: 208,
+            w: 280,
+            h: 70,
+          },
         ],
         edges: [
           { from: 'ui', to: 'api', label: 'REST / SSE' },
@@ -331,14 +372,9 @@ export const portfolio: PortfolioData = {
       featured: true,
       role: 'AI Operator, Project Based',
       task: 'Heavy-vehicle buyers and verified manufacturers needed domestic and cross-border B2B marketplaces supporting factory-direct listings, subscription-gated transactions, checkout flows, and seller dashboards.',
-      solution: 'Owned UI, UX, and RESTful API integration for self-contained Next.js and Tailwind CSS pages across muatmuat Plus International and Plus Domestic, shipping product catalogs, order tracking, authentication, and subscription workflows with the frontend team.',
-      tech: [
-        'Next.js',
-        'TypeScript',
-        'Tailwind CSS',
-        'RESTful API',
-        'AI-Assisted Development',
-      ],
+      solution:
+        'Owned UI, UX, and RESTful API integration for self-contained Next.js and Tailwind CSS pages across muatmuat Plus International and Plus Domestic, shipping product catalogs, order tracking, authentication, and subscription workflows with the frontend team.',
+      tech: ['Next.js', 'TypeScript', 'Tailwind CSS', 'RESTful API', 'AI-Assisted Development'],
     },
     {
       index: '03',
@@ -347,17 +383,50 @@ export const portfolio: PortfolioData = {
       featured: true,
       role: 'Web Programmer (Internship at Venturo Pro Indonesia)',
       task: 'A mobile application for community-level administration serving over 1,000 active users required a reliable RESTful backend, structured relational data model, and repeatable deployment workflow.',
-      solution: 'Led the backend team in Laravel and MySQL to deliver production RESTful APIs for mobile clients, optimizing schemas and indexing for fast queries while managing end-to-end DevOps and environment configuration.',
+      solution:
+        'Led the backend team in Laravel and MySQL to deliver production RESTful APIs for mobile clients, optimizing schemas and indexing for fast queries while managing end-to-end DevOps and environment configuration.',
       tech: ['Laravel', 'PHP', 'MySQL', 'RESTful API'],
       diagram: {
         title: 'RT Online mobile client, Laravel RESTful API, and MySQL architecture',
         width: 950,
         height: 220,
         nodes: [
-          { id: 'mobile', label: 'Flutter Mobile Client', sublabel: '1,000+ Active Users', x: 20, y: 72, w: 210, h: 76 },
-          { id: 'laravel', label: 'Laravel API', sublabel: 'Clean MVC · RESTful Endpoints', x: 350, y: 72, w: 230, h: 76 },
-          { id: 'mysql', label: 'MySQL Database', sublabel: 'Indexed Schemas', x: 710, y: 22, w: 220, h: 72 },
-          { id: 'devops', label: 'DevOps Pipeline', sublabel: 'Deploy & Env Config', x: 710, y: 126, w: 220, h: 72 },
+          {
+            id: 'mobile',
+            label: 'Flutter Mobile Client',
+            sublabel: '1,000+ Active Users',
+            x: 20,
+            y: 72,
+            w: 210,
+            h: 76,
+          },
+          {
+            id: 'laravel',
+            label: 'Laravel API',
+            sublabel: 'Clean MVC · RESTful Endpoints',
+            x: 350,
+            y: 72,
+            w: 230,
+            h: 76,
+          },
+          {
+            id: 'mysql',
+            label: 'MySQL Database',
+            sublabel: 'Indexed Schemas',
+            x: 710,
+            y: 22,
+            w: 220,
+            h: 72,
+          },
+          {
+            id: 'devops',
+            label: 'DevOps Pipeline',
+            sublabel: 'Deploy & Env Config',
+            x: 710,
+            y: 126,
+            w: 220,
+            h: 72,
+          },
         ],
         edges: [
           { from: 'mobile', to: 'laravel', label: 'JSON API' },
@@ -372,7 +441,8 @@ export const portfolio: PortfolioData = {
       domain: 'Official Village Portal',
       role: 'Full Stack Developer',
       task: 'Desa Pendil in Probolinggo needed an accessible public website for residents across all age groups to read village news, explore public services and demographics, and browse community photo galleries.',
-      solution: 'Built a TanStack Start and React 19 portal with searchable news archives, Zod-validated API clients with an 8-second timeout and empty fallback states, on-demand revalidation, semantic landmarks, skip link, and self-hosted fonts.',
+      solution:
+        'Built a TanStack Start and React 19 portal with searchable news archives, Zod-validated API clients with an 8-second timeout and empty fallback states, on-demand revalidation, semantic landmarks, skip link, and self-hosted fonts.',
       tech: [
         'TanStack Start',
         'TanStack Router',
@@ -396,7 +466,8 @@ export const portfolio: PortfolioData = {
       domain: 'Fabrication & Catalog Web',
       role: 'Full Stack Developer',
       task: 'A metal fabrication and laser cutting workshop in Malang needed a public website showcasing services, materials, past projects, ornamental patterns, and a live-searchable catalog routed to WhatsApp inquiries.',
-      solution: 'Built the TanStack Start site with cached backend responses, on-demand revalidation, a 6-second timeout client with automatic retries, unit and API contract tests, reduced-motion and forced-colors support, and a prioritized hero image.',
+      solution:
+        'Built the TanStack Start site with cached backend responses, on-demand revalidation, a 6-second timeout client with automatic retries, unit and API contract tests, reduced-motion and forced-colors support, and a prioritized hero image.',
       tech: [
         'TanStack Start',
         'TanStack Router',
@@ -456,7 +527,9 @@ export function assertPortfolio(data: PortfolioData): void {
   data.bio.forEach((paragraph, idx) => {
     const words = countWords(paragraph);
     if (words === 0 || words > 55) {
-      throw new Error(`Portfolio assertion failed: bio paragraph ${idx + 1} has ${words} words (limit 55).`);
+      throw new Error(
+        `Portfolio assertion failed: bio paragraph ${idx + 1} has ${words} words (limit 55).`,
+      );
     }
   });
 
