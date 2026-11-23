@@ -939,7 +939,7 @@ describe('Browser verification against built dist/', () => {
     await context.close();
   }, 15000);
 
-  test('strict CSP permits Svelte islands hydration (CopyEmail and NavMenu) with zero console errors', async () => {
+  test('strict CSP permits interactive scripts (CopyEmail, NavMenu, DiagramModal) with zero console errors', async () => {
     const context = await browser.newContext({
       viewport: { width: 393, height: 852 },
       permissions: ['clipboard-read', 'clipboard-write'],

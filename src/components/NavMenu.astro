@@ -1,0 +1,72 @@
+---
+import type { NavLink } from '../data/nav';
+
+interface Props {
+  links: readonly NavLink[];
+  compactMediaQuery: string;
+}
+
+const { links, compactMediaQuery } = Astro.props;
+const menuId = 'nav-links-menu';
+---
+
+<div class="nav-menu" data-compact-query={compactMediaQuery}>
+  <button
+    type="button"
+    class="nav-menu-button"
+    popovertarget={menuId}
+    popovertargetaction="toggle"
+    aria-controls={menuId}
+    aria-expanded="false"
+  >
+    Menu
+  </button>
+  <ul id={menuId} class="nav-links" popover="auto">
+    {links.map((item) => (
+      <li>
+        <a href={item.href} aria-current={item.current ? 'page' : undefined}>
+          {item.label}
+        </a>
+      </li>
+    ))}
+  </ul>
+</div>
+
+<script>
+  for (const menu of document.querySelectorAll<HTMLElement>('.nav-menu[data-compact-query]')) {
+    const btn = menu.querySelector<HTMLButtonElement>('.nav-menu-button');
+    const popover = menu.querySelector<HTMLUListElement>('ul.nav-links[popover]');
+    const query = menu.dataset.compactQuery;
+    if (!btn || !popover || !query) continue;
+
+    const close = (): void => {
+      if (popover.matches(':popover-open')) {
+        popover.hidePopover();
+      }
+    };
+
+    popover.addEventListener('toggle', (event) => {
+      const open = (event as ToggleEvent).newState === 'open';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
+    popover.addEventListener('click', (event) => {
+      if (event.target instanceof Element && event.target.closest('a')) {
+        close();
+      }
+    });
+
+    menu.addEventListener('focusout', (event) => {
+      if (!popover.matches(':popover-open')) return;
+      const nextFocus = event.relatedTarget;
+      if (nextFocus instanceof Node && !menu.contains(nextFocus)) {
+        close();
+      }
+    });
+
+    const mq = window.matchMedia(query);
+    mq.addEventListener('change', (event) => {
+      if (!event.matches) close();
+    });
+  }
+</script>

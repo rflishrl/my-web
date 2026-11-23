@@ -202,6 +202,7 @@ export const portfolio: PortfolioData = {
         'JavaScript',
         'React',
         'Next.js',
+        'Svelte',
         'Angular',
         'Vite',
         'TanStack Start',

@@ -52,18 +52,13 @@ const headingId = `project-${project.index}`;
               href={project.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
+              class="link-inline"
             >
               Source code<span class="sr-only"> for {project.title} (opens in a new tab)</span>
             </a>
           )}
           {project.liveUrl && (
-            <a
-              href={project.liveUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
-            >
+            <a href={project.liveUrl} target="_blank" rel="noopener noreferrer" class="link-inline">
               Live demo<span class="sr-only"> for {project.title} (opens in a new tab)</span>
             </a>
           )}

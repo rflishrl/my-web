@@ -1,6 +1,5 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
-import svelte, { vitePreprocess } from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
@@ -32,7 +31,7 @@ export default defineConfig({
       },
     },
   },
-  integrations: [sitemap(), svelte({ preprocess: vitePreprocess() })],
+  integrations: [sitemap()],
   vite: {
     plugins: [tailwindcss()],
     build: {

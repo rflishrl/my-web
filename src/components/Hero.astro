@@ -2,21 +2,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { portfolio } from '../data/portfolio';
-import CopyEmail from './CopyEmail.svelte';
+import { formatPortfolioDate } from '../utils/date';
+import CopyEmail from './CopyEmail.astro';
 
-const now = new Date();
-const buildYear = now.getFullYear();
-const buildMonthYear = new Intl.DateTimeFormat('en-GB', {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'Asia/Jakarta',
-}).format(now);
-
-const buildIsoMonth = new Intl.DateTimeFormat('en-CA', {
-  year: 'numeric',
-  month: '2-digit',
-  timeZone: 'Asia/Jakarta',
-}).format(now);
+const {
+  year: buildYear,
+  monthYear: buildMonthYear,
+  isoMonth: buildIsoMonth,
+} = formatPortfolioDate();
 
 const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf'));
 ---
@@ -40,29 +33,18 @@ const resumeExists = fs.existsSync(path.join(process.cwd(), 'public/resume.pdf')
     <div class="hero-stagger-2 relative z-10 mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
       <p class="text-sm font-normal text-ink sm:text-base">{portfolio.headline}</p>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        <a
-          href={`mailto:${portfolio.email}`}
-          class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
-        >
+        <a href={`mailto:${portfolio.email}`} class="link-inline">
           Email
         </a>
-        <CopyEmail client:idle email={portfolio.email} label="Copy email" />
+        <CopyEmail email={portfolio.email} label="Copy email" />
         {portfolio.profiles.map((profile) => (
-          <a
-            href={profile.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
-          >
+          <a href={profile.url} target="_blank" rel="noopener noreferrer" class="link-inline">
             {profile.label}
             <span class="sr-only"> (opens in a new tab)</span>
           </a>
         ))}
         {resumeExists && (
-          <a
-            href="/resume.pdf"
-            class="inline-flex min-h-[44px] items-center text-ink underline decoration-ink-secondary/60 underline-offset-4 transition-colors duration-150 hover:text-ink-secondary active:opacity-75"
-          >
+          <a href="/resume.pdf" class="link-inline">
             Resume (PDF)
           </a>
         )}

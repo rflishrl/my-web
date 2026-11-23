@@ -9,9 +9,27 @@
   Content-Security-Policy: frame-ancestors 'none'
   Cache-Control: public, max-age=0, must-revalidate
 
+/favicon.svg
+  ! Cache-Control
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
 /og-image.png
   ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin
+  ! Cache-Control
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/robots.txt
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+
+/sitemap-index.xml
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+
+/sitemap-0.xml
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
 
 /_astro/*
   ! Cache-Control

@@ -15,7 +15,9 @@ import RunningHeader from './RunningHeader.astro';
           <Picture
             src={portraitImg}
             formats={['avif', 'webp']}
-            widths={[400, 720, 1080]}
+            widths={[416, 832]}
+            width={832}
+            quality={80}
             sizes="(max-width: 1023px) min(92vw, 26rem), 26rem"
             alt={portfolio.portraitAlt}
             loading="lazy"

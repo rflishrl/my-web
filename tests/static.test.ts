@@ -132,7 +132,9 @@ describe('Static verification of dist/', () => {
     let headerSvgs = 0;
     let compactPopoverLists = 0;
     let brandLinkCount = 0;
+    let copyEmailButtons = 0;
     let copyButtonsWithHidden = 0;
+    let diagramSvgs = 0;
     const astroIslands: Array<{ componentUrl: string; client: string }> = [];
     const navFullLinks: Array<{ href: string; text: string; ariaLabel: string | null }> = [];
     const navCompactLinks: Array<{ href: string; text: string; ariaLabel: string | null }> = [];
@@ -246,9 +248,19 @@ describe('Static verification of dist/', () => {
           compactPopoverLists += 1;
         },
       })
+      .on('button[data-copy-email]', {
+        element() {
+          copyEmailButtons += 1;
+        },
+      })
       .on('button[data-copy-email][hidden]', {
         element() {
           copyButtonsWithHidden += 1;
+        },
+      })
+      .on('svg.diagram-svg', {
+        element() {
+          diagramSvgs += 1;
         },
       })
       .on('.nav-full a', {
@@ -457,48 +469,50 @@ describe('Static verification of dist/', () => {
       expect(cspContent).toContain(`'sha256-${digest}'`);
     }
 
-    // Astro Islands: NavMenu (client:media) + 2 CopyEmail (client:idle) + 2 DiagramViewer (client:media)
-    expect(
-      astroIslands.some((i) => i.componentUrl.includes('NavMenu') && i.client === 'media'),
-    ).toBe(true);
-    expect(
-      astroIslands.filter((i) => i.componentUrl.includes('CopyEmail') && i.client === 'idle'),
-    ).toHaveLength(2);
-    expect(
-      astroIslands.filter((i) => i.componentUrl.includes('DiagramViewer') && i.client === 'media'),
-    ).toHaveLength(2);
+    // Interactive modules without Svelte/framework islands runtime
+    expect(astroIslands).toEqual([]);
+    expect(copyEmailButtons).toBe(2);
+    expect(diagramSvgs).toBe(2);
     expect(html).not.toContain('Architecture diagram');
 
-    // Built JS checks: modular Svelte islands (no IntersectionObserver, no scroll listener, bounded gzip size)
+    // Built JS checks: modular vanilla TS scripts (no Svelte client runtime, bounded gzip size)
     const jsFiles = walkFiles(distDir).filter((f) => f.endsWith('.js'));
+    expect(jsFiles.some((f) => path.basename(f).startsWith('client.'))).toBe(false);
     let totalGzipBytes = 0;
     let navMenuBundle: { path: string; code: string; gzipBytes: number } | null = null;
     let copyEmailBundle: { path: string; code: string; gzipBytes: number } | null = null;
-    let diagramViewerBundle: { path: string; code: string; gzipBytes: number } | null = null;
+    let diagramBootstrapBundle: { path: string; code: string; gzipBytes: number } | null = null;
+    let diagramModalBundle: { path: string; code: string; gzipBytes: number } | null = null;
     for (const jsFile of jsFiles) {
       const raw = fs.readFileSync(jsFile);
       const gzipped = Bun.gzipSync(raw);
       totalGzipBytes += gzipped.byteLength;
       const code = raw.toString('utf8');
-      if (path.basename(jsFile).startsWith('NavMenu.')) {
+      const base = path.basename(jsFile);
+      if (base.startsWith('NavMenu.')) {
         navMenuBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
       }
-      if (path.basename(jsFile).startsWith('CopyEmail.')) {
+      if (base.startsWith('CopyEmail.')) {
         copyEmailBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
       }
-      if (path.basename(jsFile).startsWith('DiagramViewer.')) {
-        diagramViewerBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
+      if (base.startsWith('ArchitectureDiagram.')) {
+        diagramBootstrapBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
+      }
+      if (base.startsWith('diagram-modal.')) {
+        diagramModalBundle = { path: jsFile, code, gzipBytes: gzipped.byteLength };
       }
     }
     expect(navMenuBundle).not.toBeNull();
     expect(copyEmailBundle).not.toBeNull();
-    expect(diagramViewerBundle).not.toBeNull();
-    expect(navMenuBundle!.gzipBytes).toBeLessThanOrEqual(2048);
-    expect(copyEmailBundle!.gzipBytes).toBeLessThanOrEqual(2048);
-    expect(diagramViewerBundle!.gzipBytes).toBeLessThanOrEqual(4096);
+    expect(diagramBootstrapBundle).not.toBeNull();
+    expect(diagramModalBundle).not.toBeNull();
+    expect(navMenuBundle!.gzipBytes).toBeLessThanOrEqual(1024);
+    expect(copyEmailBundle!.gzipBytes).toBeLessThanOrEqual(1024);
+    expect(diagramBootstrapBundle!.gzipBytes).toBeLessThanOrEqual(2048);
+    expect(diagramModalBundle!.gzipBytes).toBeLessThanOrEqual(3072);
     expect(navMenuBundle!.code).not.toContain('IntersectionObserver');
     expect(navMenuBundle!.code).not.toMatch(/addEventListener\(\s*["']scroll["']|\.onscroll\b/);
-    expect(totalGzipBytes).toBeLessThanOrEqual(25600);
+    expect(totalGzipBytes).toBeLessThanOrEqual(8192);
 
     // Inline CSS active & Open Graph present
     expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["']/i);

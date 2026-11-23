@@ -1,0 +1,85 @@
+---
+interface Props {
+  email: string;
+  label?: string;
+  inverse?: boolean;
+}
+
+const { email, label = 'Copy email', inverse = false } = Astro.props;
+---
+
+<span class="relative inline-flex items-center">
+  <button
+    type="button"
+    data-copy-email={email}
+    class:list={[
+      'btn-frame inline-flex min-h-[44px] items-center border px-3 text-sm transition-colors duration-150 active:opacity-75',
+      inverse
+        ? 'border-ink-inverse-muted text-ink-inverse hover:border-ink-inverse hover:bg-ink-inverse hover:text-inverse'
+        : 'border-ink-secondary text-ink hover:border-ink hover:bg-ink hover:text-ink-inverse',
+    ]}
+  >
+    {label}
+  </button>
+  <span
+    role="status"
+    data-copy-status
+    class:list={[
+      'pointer-events-none absolute bottom-full left-0 mb-1.5 whitespace-nowrap border px-2 py-1 text-xs opacity-0 transition-opacity duration-150',
+      inverse
+        ? 'border-ink-inverse bg-ink-inverse text-inverse'
+        : 'border-ink bg-ink text-ink-inverse',
+    ]}
+  ></span>
+</span>
+
+<script>
+  const timers = new WeakMap<HTMLButtonElement, number>();
+  let lastAnnouncement = '';
+
+  const showStatus = (btn: HTMLButtonElement, statusEl: HTMLElement, text: string): void => {
+    // Append a non-breaking space when repeating so VoiceOver re-announces identical statuses.
+    const nextMessage = text === lastAnnouncement ? `${text}\u00A0` : text;
+    lastAnnouncement = text;
+    statusEl.textContent = '';
+    statusEl.classList.remove('opacity-0');
+    statusEl.classList.add('opacity-100');
+    requestAnimationFrame(() => {
+      statusEl.textContent = nextMessage;
+    });
+
+    const prevTimer = timers.get(btn);
+    if (prevTimer !== undefined) clearTimeout(prevTimer);
+    timers.set(
+      btn,
+      window.setTimeout(() => {
+        delete btn.dataset.copied;
+        delete btn.dataset.failed;
+        statusEl.textContent = '';
+        statusEl.classList.remove('opacity-100');
+        statusEl.classList.add('opacity-0');
+      }, 2000),
+    );
+  };
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-copy-email]')) {
+    const statusEl = btn.nextElementSibling;
+    if (!(statusEl instanceof HTMLElement) || !statusEl.hasAttribute('data-copy-status')) continue;
+
+    btn.addEventListener('click', async () => {
+      const email = btn.dataset.copyEmail;
+      if (!email) return;
+      try {
+        if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
+        await navigator.clipboard.writeText(email);
+        btn.dataset.copied = '';
+        delete btn.dataset.failed;
+        showStatus(btn, statusEl, 'Copied');
+      } catch {
+        btn.dataset.failed = '';
+        delete btn.dataset.copied;
+        showStatus(btn, statusEl, 'Copy failed');
+      }
+    });
+  }
+</script>
