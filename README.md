@@ -1,49 +1,27 @@
 # Rafli Sahrul — Portfolio (`www.raflisahrul.my.id`)
 
-Editorial personal portfolio for **Rafli Sahrul** (Software & AI Engineer), built as a static-first **Astro 7** site with modular zero-framework **TypeScript** interactivity, **Tailwind CSS v4**, strict **TypeScript**, and **Bun**.
+Personal portfolio website for Rafli Sahrul, a Software and AI Engineer. The site uses an editorial layout and pre-built pages so everything loads quickly.
 
-## About This Project
+## About this project
 
-- **Architecture:** Multi-page static build (`output: 'static'`, `inlineStylesheets: 'always'`) across `/` (overview with featured projects `BrandMuse`, `muatmuat Plus`, and `RT Online`), `/projects` (complete project archive), and `/404`.
-- **Zero-Framework Client Interactivity:** Lightweight bundled TypeScript `<script>` modules enhance native HTML controls with zero client-side UI framework runtime: `CopyEmail.astro` for clipboard copying with live-region feedback, `NavMenu.astro` for the compact phone popover menu, and SSR `ArchitectureDiagram.astro` SVGs that dynamically import `src/scripts/diagram-modal.ts` on demand only when zoomed on narrow or coarse-pointer viewports.
-- **Security & Performance:** Build-time `SHA-256` Content Security Policy (`security.csp` in `astro.config.mjs`, with `base-uri 'none'` and `'inline-speculation-rules'`, without `'unsafe-inline'`), paired with `public/_headers` (`Strict-Transport-Security`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`, immutable caching for `/_astro/*`, and `Cache-Control` policies for icons, Open Graph image, `robots.txt`, and sitemaps). Uses Latin-only self-hosted font subsetting (variable `Inter Variable` + static 400-weight `JetBrains Mono`), `<script type="speculationrules">` (`eagerness: "moderate"`), cross-document `@view-transition` with `<link rel="expect" blocking="render">`, CSS `contain` isolation on `.diagram-dialog`, and `content-visibility: auto` on below-the-fold project articles.
-- **Accessibility & Responsive Layout:** Targets **WCAG 2.2 Level AA** with skip-link navigation, `<meta name="text-scale" content="scale" />`, `<meta name="color-scheme" content="light" />`, `44x44` CSS px coarse-pointer hit targets, `aria-disabled` zoom controls with preserved keyboard focus, structured SVG `<figcaption>` descriptions, `scroll-target-group: auto` scrollspy (`IntersectionObserver` fallback), `prefers-contrast: more` scrollbar theming, Windows High Contrast (`forced-colors: active`) rules, safe-area inset tokens (`viewport-fit=cover`), and two-segment foldable layout rules (`@media (horizontal-viewport-segments: 2)`).
+The website has a main overview page with three selected projects (BrandMuse, muatmuat Plus, and RT Online), a complete project archive, and a custom error page for missing links. Page styling loads directly with each page so visitors see the finished layout right away.
+
+Small scripts handle the interactive parts directly, so the browser does not have to load a large interface library. Visitors can copy Rafli's email address with one click and get immediate confirmation, open a compact menu on phones, and zoom in on architecture diagrams on smaller or touch screens. The zoom viewer only downloads when someone taps a diagram.
+
+Built-in browser security rules block unauthorized scripts and keep other websites from embedding these pages. For speed, the site hosts trimmed-down copies of its own fonts (Inter and JetBrains Mono), saves assets in browser cache for return visits, prepares likely next pages in the background, and smooths out movement between pages. Project sections further down the page wait to load until you scroll to them.
 
 ## Tech Stack
 
-| Layer                     | Technology                                                                                            | Purpose                                                         |
-| ------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Framework                 | Astro `7.4.12` (zero-framework client TypeScript)                                                     | Static site generation and minimal client enhancement           |
-| Styling & Fonts           | Tailwind CSS `4.3.5`, `@tailwindcss/vite`, `@fontsource-variable/inter`, `@fontsource/jetbrains-mono` | Design tokens, layout utilities, Latin-subset self-hosted fonts |
-| Language & Type Checking  | TypeScript `6.0.3` (`strict: true`), `@astrojs/check`                                                 | Compile-time type safety across `.ts` and `.astro`              |
-| Linting & Formatting      | ESLint `10.15.0` (`eslint-plugin-astro`, `typescript-eslint`), Prettier `3.10.1`                      | Flat-config static linting and Astro/CSS/TS formatting          |
-| Media & SEO               | `sharp`, `@astrojs/sitemap`, Schema.org `Person` JSON-LD                                              | Optimized `AVIF`/`WebP` portrait builds, sitemap, Open Graph    |
-| Runtime & Package Manager | Bun `1.4.4`                                                                                           | Package installation, script execution, and test runner         |
-| Automated Verification    | Playwright (Chromium & WebKit), `axe-core`, `bun:test`                                                | Static HTML/CSS/CSP checks and browser/WCAG 2.2 AA E2E suite    |
-| Hosting                   | Cloudflare Pages                                                                                      | Static deployment with custom headers and redirects             |
-
-### Resolved Dependency Versions
-
-| Package                        | Version                                                                                |
-| ------------------------------ | -------------------------------------------------------------------------------------- |
-| `astro`                        | `7.4.12`                                                                               |
-| `@astrojs/sitemap`             | `3.7.5`                                                                                |
-| `@astrojs/check`               | `0.9.12`                                                                               |
-| `typescript`                   | `6.0.3` (`@astrojs/check` requires TS 6; TS 7.0 is not yet supported by `astro check`) |
-| `tailwindcss`                  | `4.3.5`                                                                                |
-| `@tailwindcss/vite`            | `4.3.5`                                                                                |
-| `sharp`                        | `0.35.5`                                                                               |
-| `@fontsource-variable/inter`   | `5.3.0`                                                                                |
-| `@fontsource/jetbrains-mono`   | `5.3.0`                                                                                |
-| `eslint` (dev)                 | `10.15.0`                                                                              |
-| `typescript-eslint` (dev)      | `8.73.0`                                                                               |
-| `eslint-plugin-astro` (dev)    | `3.2.1`                                                                                |
-| `eslint-config-prettier` (dev) | `10.1.8`                                                                               |
-| `prettier` (dev)               | `3.10.1`                                                                               |
-| `prettier-plugin-astro` (dev)  | `1.1.2`                                                                                |
-| `playwright` (dev)             | `1.65.1`                                                                               |
-| `axe-core` (dev)               | `4.14.0`                                                                               |
-| `@types/bun` (dev)             | `1.4.4`                                                                                |
+| Layer                     | Technology                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Framework & Bundler       | Astro `7.4.12` (zero-framework client TypeScript), Vite `8.3.8`                                       |
+| Styling & Fonts           | Tailwind CSS `4.3.5`, `@tailwindcss/vite`, `@fontsource-variable/inter`, `@fontsource/jetbrains-mono` |
+| Language & Type Checking  | TypeScript `6.0.3` (`strict: true`), `@astrojs/check`                                                 |
+| Linting & Formatting      | ESLint `10.15.0` (`@eslint/js`, `eslint-plugin-astro`, `typescript-eslint`), Prettier `3.10.1`        |
+| Media & SEO               | `sharp`, `@astrojs/sitemap`, Schema.org `Person` JSON-LD                                              |
+| Runtime & Package Manager | Bun `1.4.4`                                                                                           |
+| Automated Verification    | Playwright (Chromium & WebKit), `axe-core`, `bun:test` (`HTMLRewriter`)                               |
+| Hosting                   | Cloudflare Pages                                                                                      |
 
 ## Design System
 
